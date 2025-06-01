@@ -139,7 +139,13 @@ class Arch242Assembler:
     
     def decode_address(self, operand: str):
         operand = operand.strip()
-        return self.parse_immediate_values(operand)
+        if operand.startswith('$'):
+            operand = operand[1:]
+
+        if operand in self.labels:
+            return self.labels[operand]
+        else:
+            return self.parse_immediate_values(operand)
     
     def encode_instruction(self, parts: list[str], iteration: int)-> list[int]:
         if not parts:
@@ -175,7 +181,7 @@ class Arch242Assembler:
             return [0x37, 0x3E]
         
         # for immediate instructions
-        if len(parts) > 1:
+        if len(parts) > 1 and parts[0] != 'b':
             immediate = self.parse_immediate_values(parts[1])
             if immediate > 8:
                 print("hey stupid, 4 bits nga lang sabi sa instruction")
@@ -213,7 +219,7 @@ class Arch242Assembler:
                     yyyy = (immediate_two_bit >> 4) & 0x0F
                     xxxx = immediate_two_bit & 0x0F
                     return [((0x60 | xxxx) << 8) | yyyy]
-                
+        
         if instruction == 'b-bit':
             kk = self.parse_immediate_values(parts[1])
             if kk > 3:
@@ -228,7 +234,7 @@ class Arch242Assembler:
                 return [first_byte, second_byte]
             else:
                 return [0, 0]
-        
+            
         # branch instructions
         if instruction in self.branch_instructions and len(parts) > 1:
             if iteration == 2:
@@ -357,6 +363,7 @@ class Arch242Assembler:
                     self.current_address += len(instruction_encoded)
 
             except Exception as e:
+                print("bobo ka tanga tanga ka")
                 raise ValueError(f"Error on line{line_number}, with error {str(e)}")
 
 
