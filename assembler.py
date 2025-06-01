@@ -73,6 +73,7 @@ class Arch242Assembler:
             #'RF': 5,
     }
         self.current_address = 0
+        self.labels: dict[str, int] = {}
         self.output: list[str] = []
         
     def parse_immediate_values(self, value: str) -> int:
@@ -98,6 +99,24 @@ class Arch242Assembler:
             return None
         
         # labels TODO (if kaya)
+        if line.startswith('$'):
+            space_position = line.find(' ')
+            tab_position = line.find('\t')
+
+            if space_position == -1:
+                end_position = tab_position
+            elif tab_position == -1:
+                end_position = space_position
+            else:
+                end_position = min(space_position, tab_position)
+            
+            if end_position == -1:
+                return ('label', line[1:])
+            else:
+                label = line[1:end_position]
+                rest = line[end_position:].strip()
+
+                return ('inline_label', (label, rest))
 
         # .byte
         # format nito ay .byte (check kung anong value 0x)
@@ -262,7 +281,47 @@ class Arch242Assembler:
 
         # TODO (if kaya) labels 
         # idea! 2 iterations to calculate yung address nung labels so we know where to jump tas store the address na lang
-        
+        self.current_address = 0
+
+        for line_number, line in enumerate(lines, 1):
+            try:
+                parsed = self.parse_line(line)
+                if not parsed:
+                    continue
+
+                command_type, data = parsed
+
+                if command_type == 'label':
+                    if data in self.labels:
+                        print("nagamit na")
+                        raise ValueError
+                    self.labels[data] = self.current_address
+                elif command_type == 'inline_label':
+                    label, instruction_data = data
+                    if label in self.labels:
+                        print("nagamit na")
+                        raise ValueError
+                    self.labels[label] = self.current_address
+
+                    parsed_instruction = self.parse_line(instruction_data)
+                    if parsed_instruction:
+                        _, instruction_information = parsed_instruction
+                        if parsed_instruction[0] == 'byte':
+                            self.current_address += 1
+                        elif parsed_instruction[0] == 'instruction':
+                            encoded = self.encode_instruction(instruction_information, 1)
+                            self.current_address += len(encoded) 
+
+                elif command_type == 'byte':
+                    self.current_address += 1
+                elif command_type == 'instruction':
+                    instruction_encoded = self.encode_instruction(data, 1)
+                    self.current_address += len(instruction_encoded)
+
+            except Exception as e:
+                raise ValueError(f"Error on line{line_number}, with error {str(e)}")
+
+
         self.current_address = 0
         self.output: list[int] = []
 
@@ -274,7 +333,23 @@ class Arch242Assembler:
 
                 command_type, data = parsed
 
-                if command_type == 'byte':
+                if command_type == 'label':
+                    continue
+                elif command_type == 'inline_label':
+                    label, instruction_data = data
+
+                    parsed_instruction = self.parse_line(instruction_data)
+                    if parsed_instruction:
+                        _, instruction_information = parsed_instruction
+                        if parsed_instruction[0] == 'byte':
+                            self.current_address += 1
+                            self.output.append(instruction_information)
+                        elif parsed_instruction[0] == 'instruction':
+                            encoded = self.encode_instruction(instruction_information, 2)
+                            self.output.extend(encoded)
+                            self.current_address += len(encoded) 
+                elif command_type == 'byte':
+                    self.output.append(data)
                     self.current_address += 1
                 elif command_type == 'instruction':
                     instruction_encoded = self.encode_instruction(data, 2)
