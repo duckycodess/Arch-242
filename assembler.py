@@ -99,24 +99,18 @@ class Arch242Assembler:
             return None
         
         # labels TODO (if kaya)
-        if line.startswith('$'):
-            space_position = line.find(' ')
-            tab_position = line.find('\t')
-
-            if space_position == -1:
-                end_position = tab_position
-            elif tab_position == -1:
-                end_position = space_position
-            else:
-                end_position = min(space_position, tab_position)
+        if ':' in line:
+            label_pos = line.find(':')
+            label = line[:label_pos].strip()
+            rest = line[label_pos + 1:].strip()
             
-            if end_position == -1:
-                return ('label', line[1:])
-            else:
-                label = line[1:end_position]
-                rest = line[end_position:].strip()
-
+            if not label:
+                raise ValueError("Empty label")
+            
+            if rest:
                 return ('inline_label', (label, rest))
+            else:
+                return ('label', label)
 
         # .byte
         # format nito ay .byte (check kung anong value 0x)
@@ -139,8 +133,8 @@ class Arch242Assembler:
     
     def decode_address(self, operand: str):
         operand = operand.strip()
-        if operand.startswith('$'):
-            operand = operand[1:]
+        if label_pos := operand.find(':'):
+            operand = operand[label_pos:]
 
         if operand in self.labels:
             return self.labels[operand]
@@ -385,7 +379,7 @@ class Arch242Assembler:
 
         with open(output_file_name, 'wb') as f:
             f.write(output_data)
-        
+        print(self.labels)
         print("Assembled fuck you")
                             
     
