@@ -177,7 +177,7 @@ class Arch242Assembler:
             return [0x37, 0x3E]
         
         # for immediate instructions
-        if len(parts) > 1 and parts[0] not in ['b', 'call']:
+        if len(parts) > 1 and (parts[0] not in ['b', 'call'] and parts[0] not in self.branch_instructions):
             # TODO fix if overflow
             immediate_two_bit = self.parse_immediate_values(parts[1])
             immediate_two_bit = self.parse_immediate_values(parts[1]) & 0xFF
