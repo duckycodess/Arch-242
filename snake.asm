@@ -26,12 +26,12 @@ start:
 
 clear_leds:
     to-mba # MEM[RBRA] to 0, LED off
-    inc* RA # RA++, inner loop from 0->...->F->0
+    inc*-ra # RA++, inner loop from 0->...->F->0
     bnz-a next_row # if tapos na matraverse ng RA buong column sa isang row (that is 0xF->0x0), next row naman
     b clear_leds # else, keep traversing the whole column of this row
 
 next_row:
-    inc* RB # RB++, outer loop from 0->...->F->0
+    inc*-rb # RB++, outer loop from 0->...->F->0
     bnz-b clear_leds # if hindi pa rin tapos magtraverse RB (that is hindi pa 0xF->0x0), keep clearing other columns pa
 
     # at this point, 0xC0 and 0xFF are all cleared
