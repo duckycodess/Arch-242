@@ -197,7 +197,7 @@ class arch242emu():
 
         elif val == 62:
             print('nop detected')
-            nop()
+            self.nop()
 
         elif val == 63:
             print('dec detected')
@@ -226,6 +226,8 @@ class arch242emu():
 
         elif val <= 159:
             print('b-bit detected')
+            next_instruction = int(self.ASM_MEM[pc][1], base=16)
+            self.b_bit(val, next_instruction)
 
         # group 15 (160-255):
         # bnz-a, bnz-b, beqz, bnez, beqz-cf, bnez-cf, b-timer, bnz-d, b, call
@@ -425,16 +427,105 @@ class arch242emu():
         ...
 
     def k_inst(self, inst):
-        ...
+        next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+
+        if inst == 64: # add <imm>
+            result = self.ACC + (next_instruction & 0xF)
+            self.ACC = result & 0xF
+        elif inst == 65: # sub <imm>
+            result = self.ACC - (next_instruction & 0xF)
+            self.ACC = result & 0xF
+        elif inst == 66: # and <imm>
+            self.ACC = self.ACC & (next_instruction & 0xF)
+        elif inst == 67: # xor <imm>
+            self.ACC = self.ACC ^ (next_instruction & 0xF)
+        elif inst == 68: # or <imm>
+            self.ACC = self.ACC | (next_instruction & 0xF)
+        elif inst == 69: # wala
+            print("undefined inst :(")
+        elif inst == 70: # r4 <imm>
+            self.RE = next_instruction & 0xF
+        elif inst == 71: # timer <imm>
+            self.TIMER = next_instruction & 0xF
+        self.PC += 2        
+
 
     def l_inst(self, inst):
         ...
 
     def m_inst(self, inst):
-        ...
+        next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        if 80 <= inst <= 95: # rarb
+            self.RA = (inst - 80) & 0xF
+            self.RB = next_instruction & 0xF
+        elif 96 <= inst <= 111: # rcrd
+            self.RC = (inst - 96) & 0xF
+            self.RD = next_instruction & 0xF
+        self.PC += 2
 
     def n_inst(self, inst):
-        ...
+
+        next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+
+        def decode_next_address(offset: int =0xF800):
+            address = ((inst & 0x7) << 8) | next_instruction
+            return (self.PC & offset) | address
+
+        if 160 <= inst <= 167: # bnz-a <imm>
+            if self.RA != 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 168 <= inst <= 175: # bnz-b <imm>
+            if self.RB != 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 176 <= inst <= 183: # beqz <imm>
+            if self.ACC == 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 184 <= inst <= 191: # bnez <imm>
+            if self.ACC != 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 192 <= inst <= 199: # beqz-cf <imm>
+            if self.CF == 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 200 <= inst <= 207: # bnez-cf <imm>
+            if self.CF != 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 208 <= inst <= 215: # b-timer
+            if self.TIMER_RUNNING: # TODO checker if timer is running thanks mansur
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 216 <= inst <= 223: # bnz-d
+            if self.RD != 0:
+                self.PC = decode_next_address()
+            else:
+                self.PC += 2
+        elif 224 <= inst <= 239: # b
+            self.PC = decode_next_address(0xF000)
+
+        elif 240 <= inst <= 255: # call
+            self.PC = decode_next_address(0xF000)
+
+    def b_bit(self, inst, next_instruction):
+        bit_position = (inst >> 3) & 0x3
+        if (self.ACC >> bit_position) & 1:
+            address = ((inst & 0x7) << 8) | next_instruction
+            self.PC = (self.PC & 0xF800) | address
+        else:
+            self.PC += 2
+            
+
 
     def nop(self):
         self.PC +=1 #have not implemented nop for 2 byte instructions
