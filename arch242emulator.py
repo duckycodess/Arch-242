@@ -16,7 +16,7 @@ from assembler import Arch242Assembler
 #   2 -> RC
 #   3 -> RD
 #   4 -> RE
-#   5 -> RD
+#   5 -> RF
 
 # Special registers
 #   ACC -> Stores result of most instr. 4 bits
@@ -59,6 +59,7 @@ class arch242emu():
         self.CF = 0b0
 
         self.EI = 0b0 #?
+        self.PA = 0b0 #?
 
         self.PC = 0 #use this to iterate through ASM_MEM
 
@@ -74,7 +75,7 @@ class arch242emu():
 
             self.ASM_MEM = self.preprocess_mem(PRE_MEM)
             
-        MEM = [0b00000000]*256 #assuming byte-addressible memory
+        self.MEM = [0b00000000]*256 #assuming byte-addressible memory
 
         while self.PC != len(self.ASM_MEM): #missing edge case: shutdown instruction
             self.read_inst(self.PC, self.ASM_MEM)
@@ -196,6 +197,7 @@ class arch242emu():
 
         elif val == 62:
             print('nop detected')
+            nop()
 
         elif val == 63:
             print('dec detected')
@@ -251,6 +253,8 @@ class arch242emu():
         else:
             return val
 
+    #TODO: _underflowe
+
     def a_inst(self, inst):
         if inst == 0:
             swapbit = (self.ACC & 1)*8
@@ -273,16 +277,117 @@ class arch242emu():
         self.PC += 1
 
     def b_inst(self, inst):
-        ...
+        if inst == 4:
+            self.ACC = self.MEM[(self.RB << 4) + self.RA]
+
+        elif inst == 5:
+            self.MEM[(self.RB << 4) + self.RA] = self.ACC
+
+        elif inst == 6:
+            self.ACC = self.MEM[(self.RD << 4) + self.RC]
+
+        elif inst == 7:
+            self.MEM[(self.RD << 4) + self.RC] = self.ACC
+
+        self.PC += 1
+
 
     def c_inst(self, inst):
-        ...
+        if inst == 8:
+            calc = self.ACC + self.MEM[(self.RB << 4) + self.RA] + self.CF
+            self.CF = (calc >> 5 & 1)
+            self.ACC = self._overflowe(calc)
+
+        elif inst == 9:
+            calc = self.ACC + self.MEM[(self.RB << 4) + self.RA]
+            self.CF = (calc >> 5 & 1)
+            self.ACC = self._overflowe(calc)
+
+        elif inst == 10:
+            calc = self.ACC - self.MEM[(self.RB << 4) + self.RA] + self.CF
+            self.CF = (calc >> 5 & 1) #paano ba undeflow bit?
+            self.ACC = self._overflowe(calc) #might not work?
+
+        elif inst == 11:
+            calc = self.ACC - self.MEM[(self.RB << 4) + self.RA]
+            self.CF = (calc >> 5 & 1) #paano ba undeflow bit?
+            self.ACC = self._overflowe(calc) #might not work?
+
+        self.PC += 1
 
     def d_inst(self, inst):
-        ...
+        if inst == 12:
+            self.MEM[(self.RB << 4) + self.RA] = self._overflowe([(self.RB << 4) + self.RA] + 1)
+
+        elif inst == 13:
+            self.MEM[(self.RB << 4) + self.RA] = self._overflowe([(self.RB << 4) + self.RA] - 1) #TODO: underflow
+
+        elif inst == 14:
+            self.MEM[(self.RD << 4) + self.RC] = self._overflowe([(self.RD << 4) + self.RC] + 1)
+
+        elif inst == 15:
+            self.MEM[(self.RD << 4) + self.RC] = self._overflowe([(self.RD << 4) + self.RC] - 1) #TODO: underflow
+
+        elif inst <= 25:
+            #panget neto amp
+            if inst == 16:
+                self.RA == self._overflowe(self.RA + 1)
+            elif inst == 17:
+                self.RA == self._overflowe(self.RA - 1) #TODO: underflow
+            elif inst == 18:
+                self.RB == self._overflowe(self.RB + 1)
+            elif inst == 19:
+                self.RB == self._overflowe(self.RB - 1) #TODO: underflow
+            elif inst == 20:
+                self.RC == self._overflowe(self.RC + 1)
+            elif inst == 21:
+                self.RC == self._overflowe(self.RC - 1) #TODO: underflow
+            elif inst == 22:
+                self.RD == self._overflowe(self.RD + 1)
+            elif inst == 23:
+                self.RD == self._overflowe(self.RD - 1) #TODO: underflow
+            elif inst == 24:
+                self.RE == self._overflowe(self.RE + 1)
+            elif inst == 25:
+                self.RE == self._overflowe(self.RE - 1) #TODO: underflow
+
+        self.PC += 1
 
     def e_inst(self, inst):
-        ...
+        if inst == 26:
+            self.ACC = self.ACC & self.MEM[(self.RB << 4) + self.RA]
+        elif inst == 27:
+            self.ACC = self.ACC ^ self.MEM[(self.RB << 4) + self.RA]
+        elif inst == 28:
+            self.ACC = self.ACC | self.MEM[(self.RB << 4) + self.RA]
+        elif inst == 29:
+            self.MEM[(self.RB << 4) + self.RA] = self.ACC & self.MEM[(self.RB << 4) + self.RA]
+        elif inst == 30:
+            self.MEM[(self.RB << 4) + self.RA] = self.ACC ^ self.MEM[(self.RB << 4) + self.RA]
+        elif inst == 31:
+            self.MEM[(self.RB << 4) + self.RA] = self.ACC | self.MEM[(self.RB << 4) + self.RA]
+        elif inst <= 41:
+            #panget to ren amp
+            if inst == 32:
+                self.MEM[self.RA] = self.ACC
+            elif inst == 33:
+                self.ACC = self.MEM[self.RA]
+            elif inst == 34:
+                self.MEM[self.RB] = self.ACC
+            elif inst == 35:
+                self.ACC = self.MEM[self.RB]
+            elif inst == 36:
+                self.MEM[self.RC] = self.ACC
+            elif inst == 37:
+                self.ACC = self.MEM[self.RC]
+            elif inst == 38:
+                self.MEM[self.RD] = self.ACC
+            elif inst == 39:
+                self.ACC = self.MEM[self.RD]
+            elif inst == 40:
+                self.MEM[self.RE] = self.ACC
+            elif inst == 41:
+                self.ACC = self.MEM[self.RE]
 
     def f_inst(self, inst):
         if inst == 42:
@@ -300,7 +405,18 @@ class arch242emu():
         ...
 
     def h_inst(self, inst):
-        ...
+        if inst == 48:
+            self.ACC = self.PA
+        elif inst == 49:
+            self.ACC = self._overflowe(self.ACC + 1)
+        elif inst == 50:
+            self.IOA = self.ACC
+        elif inst == 51:
+            self.IOB = self.ACC
+        elif inst == 52:
+            self.IOC = self.ACC
+    
+        self.PC += 1
 
     def i_inst(self, inst):
         ...
@@ -319,6 +435,9 @@ class arch242emu():
 
     def n_inst(self, inst):
         ...
+
+    def nop(self):
+        self.PC +=1 #have not implemented nop for 2 byte instructions
 
     def bcd(self):
         if self.ACC >= 10 or self.CF:
