@@ -143,6 +143,8 @@ class Arch242Assembler:
                 return ('byte', val)
             except InvalidNumberFormatError:
                 raise
+            except ByteValueError:
+                raise
             except Exception:
                 raise InvalidDirectiveError(
                     line,
@@ -218,6 +220,16 @@ class Arch242Assembler:
 
         if instruction == 'shutdown':
             return [0x37, 0x3E]
+        
+        known_two_byte_instructions = ['add', 'sub', 'and', 'xor', 'or', 'r4', 'timer', 
+        'acc', 'rarb', 'rcrd', 'b', 'call', 'b-bit'] + list(self.branch_instructions.keys())
+        if instruction not in known_two_byte_instructions:
+            # tangina anong instruction nilagay mo pag umabot dito HAHAHAHAHAHAAHAHAHA
+            raise UnknownInstructionError(
+                instruction,
+                self.current_line_number,
+                self.current_line_content
+            )
 
         if instruction not in ['b', 'call', 'b-bit'] and instruction not in self.branch_instructions:
             if len(parts) < 2 or len(parts) > 2:
@@ -429,12 +441,6 @@ class Arch242Assembler:
             else:
                 return [0, 0]
         
-        # tangina anong instruction nilagay mo pag umabot dito HAHAHAHAHAHAAHAHAHA
-        raise UnknownInstructionError(
-            instruction,
-            self.current_line_number,
-            self.current_line_content
-        )
 
     def convert_to_hex_format(self):
         hexadecimal_output: list[str] = []
