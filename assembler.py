@@ -122,6 +122,7 @@ class Arch242Assembler:
             
             # just in case? if overflow
             if val > 0xFF:
+                print("not valid byte")
                 raise ValueError(f"Value of the byte is not valid")
             return ('byte', val)
 
@@ -152,6 +153,7 @@ class Arch242Assembler:
         
         def register_encoded_values(instruction_number: int, register: str) -> list[int]:
             if register.lower() not in self.registers:
+                print("Wala yung register")
                 raise ValueError
             
             register_index = self.registers[register]
@@ -175,18 +177,13 @@ class Arch242Assembler:
             return [0x37, 0x3E]
         
         # for immediate instructions
-        if len(parts) > 1 and parts[0] != 'b':
-            immediate = self.parse_immediate_values(parts[1])
-            if immediate > 8:
-                print("hey stupid, 4 bits nga lang sabi sa instruction")
-                raise ValueError("hey stupid, 4 bits nga lang sabi sa instruction")
-            immediate = immediate & 0x0F
-
+        if len(parts) > 1 and parts[0] not in ['b', 'call']:
+            # TODO fix if overflow
             immediate_two_bit = self.parse_immediate_values(parts[1])
-            if immediate_two_bit > 255:
-                print("hey stupid, 8 bits nga lang sabi sa instruction")
-                raise ValueError("hey stupid, 8 bits nga lang sabi sa instruction")
             immediate_two_bit = self.parse_immediate_values(parts[1]) & 0xFF
+            
+            immediate = self.parse_immediate_values(parts[1])
+            immediate = immediate & 0x0F
 
             match instruction:
                 case 'add':
@@ -208,11 +205,11 @@ class Arch242Assembler:
                 case 'rarb':
                     yyyy = (immediate_two_bit >> 4) & 0x0F
                     xxxx = immediate_two_bit & 0x0F
-                    return [((0x50 | xxxx) << 8) | yyyy]
+                    return [0x50 | xxxx, 0x00 | yyyy]
                 case 'rcrd':
                     yyyy = (immediate_two_bit >> 4) & 0x0F
                     xxxx = immediate_two_bit & 0x0F
-                    return [((0x60 | xxxx) << 8) | yyyy]
+                    return [0x60 | xxxx, 0x00 | yyyy]
         
         if instruction == 'b-bit':
             kk = self.parse_immediate_values(parts[1])
@@ -260,7 +257,7 @@ class Arch242Assembler:
                 return [first_byte, second_byte]
             else:
                 return [0, 0]
-
+        print(f"invalid instruction {parts}")
         raise ValueError
         
 
@@ -319,7 +316,8 @@ class Arch242Assembler:
                     self.current_address += len(instruction_encoded)
 
             except Exception as e:
-                raise ValueError(f"Error on line{line_number}, with error {str(e)}")
+                print(f"error on first pass, {line}")
+                raise ValueError(f"Error on line {line_number}, with error {str(e)}")
 
 
         self.current_address = 0
@@ -358,7 +356,7 @@ class Arch242Assembler:
 
             except Exception as e:
                 print("bobo ka tanga tanga ka")
-                raise ValueError(f"Error on line{line_number}, with error {str(e)}")
+                raise ValueError(f"Error on line {line_number}, with error {str(e)}")
 
 
         # output check

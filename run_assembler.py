@@ -18,5 +18,6 @@ def run_assembler():
         output_data = assembler.assemble_code(input_file, format)
         assembler.write_output(output_data, input_file, format)
     except Exception as e:
+        print(e)
         exit()
 run_assembler()
