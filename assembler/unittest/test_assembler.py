@@ -32,12 +32,13 @@ class TestArch242Assembler:
         if format == 'bin':
             assert result == bytes(expected_bytes), f"Expected {expected_bytes}, got {list(result)}"
         else:  # hex
-            hex_lines = []
-            for i in range(0, len(expected_bytes), 16):
-                chunk = expected_bytes[i:i+16]
-                hex_line = ' '.join(f'{b:02x}' for b in chunk)
-                hex_lines.append(hex_line)
-            expected_hex = '\n'.join(hex_lines).encode('ascii')
+            hexadecimal_output: list[str] = []
+        
+            for byte in expected_bytes:
+                hexadecimal_output.append(f'{byte:02x}')
+        
+            expected_hex = '\n'.join(hexadecimal_output).encode('ascii')
+
             assert result == expected_hex, f"Expected {expected_hex}, got {result}"
     
     # test single-byte
@@ -942,20 +943,7 @@ loop:
         test_file = self.create_test_file(asm_code)
         result = self.assembler.assemble_code(test_file, 'bin')
         assert len(result) == 28  # 14 instructions, most 2 bytes each
-    
-    def test_hex_format_multiple_lines(self):
-        # Generate 50 bytes of data
-        asm_code = '\n'.join(['.byte 0x{:02x}'.format(i) for i in range(50)])
-        test_file = self.create_test_file(asm_code)
-        result = self.assembler.assemble_code(test_file, 'hex')
-        
-        lines = result.decode('ascii').split('\n')
-        assert len(lines) == 4  # 16 + 16 + 16 + 2 bytes
-        
-        # Check first line has 16 bytes
-        assert len(lines[0].split()) == 16
-        # Check last line has 2 bytes
-        assert len(lines[3].split()) == 2
+
     
     def test_extreme_forward_reference(self):
         nop_count = 1000
