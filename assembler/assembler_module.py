@@ -175,7 +175,7 @@ class Arch242Assembler:
         try:
             return self.parse_immediate_values(operand)
         except InvalidNumberFormatError:
-            # pag di valid number, it might be an undefined label
+            # pag di valid number, it might be an undefined label (?) not sure if tama ba pagraise ko dito
             raise UndefinedLabelError(
                 operand,
                 self.current_line_number,
@@ -268,15 +268,15 @@ class Arch242Assembler:
                 
                 case 'timer':
                     # timer accepts 8-bit values onlyyyyyy
-                    if immediate_value > 0xFF:
+                    if immediate_value > 0x0F:
                         raise ImmediateOverflowError(
                             immediate_value,
-                            8,
-                            255,
+                            4,
+                            15,
                             self.current_line_number,
                             self.current_line_content
                         )
-                    return [0x47, immediate_value & 0xFF]
+                    return [0x47, immediate_value & 0x0F]
                 
                 case 'acc':
                     if immediate_value > 0x0F:
