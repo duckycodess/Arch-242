@@ -44,6 +44,9 @@ class arch242emu():
         #initialize registers and other components
         #will be in binary for now, but ill see if i can just somehow convert them into integers during emulation process
 
+        #sidenote: taena i assumed for now na positive ints lang ung data sa mga registers
+        # if it supports 2c numbers im going to end it all
+
         self.RA = 0b0000
         self.RB = 0b0000
         self.RC = 0b0000
@@ -56,6 +59,7 @@ class arch242emu():
         self.IOC = 0b0000
 
         self.TIMER = 0b00000000
+        self.TACTIVE = False
         self.CF = 0b0
 
         self.EI = 0b0 #?
@@ -69,11 +73,10 @@ class arch242emu():
         with open(binfile, 'rb') as bin:
             data = bin.read()
 
-            PRE_MEM = [hex(byte) for byte in data]
+            self.ASM_MEM = [hex(byte) for byte in data]
 
-            print("wait")
-
-            self.ASM_MEM = self.preprocess_mem(PRE_MEM)
+            #PRE_MEM = [hex(byte) for byte in data]
+            #self.ASM_MEM = self.preprocess_mem(PRE_MEM)
             
         self.MEM = [0b00000000]*256 #assuming byte-addressible memory
 
@@ -81,7 +84,7 @@ class arch242emu():
             self.read_inst(self.PC, self.ASM_MEM)
             # self.PC += 1 # this will fuck up branch instructions, better to put this inside individual instruction functions maybe?
 
-    def preprocess_mem(self, asm):
+    def preprocess_mem(self, asm): #unused
         #notes for unfixed_instruction ranges:
         # rarb: 80 -> 95 (als rcrd??? how tf do we differentiate between the two)
         # rcrd: 96 -> 111 (assuming rcrd is actually 0110XXXX)
@@ -121,9 +124,11 @@ class arch242emu():
         #check case is in order of instructions listed in the project specification page
         #note: remove print statements when everything is done(or leave them in as debug messages?)
 
+        #val = int(inst[pc][0], base=16) #use int(inst[pc][1] to access 2 byte instruction's second byte)
+        val = int(inst[pc], base=16)
+
         # group 1 (0-3):
         # rot-r, rot-l, rot-rc, rot-lc
-        val = int(inst[pc][0], base=16) #use int(inst[pc][1] to access 2 byte instruction's second byte)
         if val <= 3:
             print('group 1 instruction detected')
             self.a_inst(val)
@@ -181,7 +186,8 @@ class arch242emu():
 
         elif val == 55:
             print('shutdown detected')
-            self.shutdown(int(inst[pc][1], base=16))
+            #self.shutdown(int(inst[pc][1], base=16))
+            self.shutdown(int(inst[pc+1], base=16))
 
         # group 10 (56-57):
         # timer-start, timer-end
@@ -197,7 +203,7 @@ class arch242emu():
 
         elif val == 62:
             print('nop detected')
-            self.nop()
+            self.nop(1)
 
         elif val == 63:
             print('dec detected')
@@ -226,7 +232,8 @@ class arch242emu():
 
         elif val <= 159:
             print('b-bit detected')
-            next_instruction = int(self.ASM_MEM[pc][1], base=16)
+            #next_instruction = int(self.ASM_MEM[pc][1], base=16)
+            next_instruction = int(self.ASM_MEM[pc+1], base=16)
             self.b_bit(val, next_instruction)
 
         # group 15 (160-255):
@@ -404,7 +411,10 @@ class arch242emu():
         self.PC += 1
 
     def g_inst(self, inst):
-        ...
+        if inst == 46:
+            ...
+        elif inst == 47:
+            ...
 
     def h_inst(self, inst):
         if inst == 48:
@@ -421,13 +431,25 @@ class arch242emu():
         self.PC += 1
 
     def i_inst(self, inst):
-        ...
+        if inst == 56:
+            self.TACTIVE = True
+        elif inst == 57:
+            self.TACTIVE = False
 
     def j_inst(self, inst):
-        ...
+        if inst == 58:
+            self.ACC = int(bin(self.TIMER)[-4:], base=2)
+        elif inst == 59:
+            self.ACC = int(bin(self.TIMER)[2:6], base=2)
+        elif inst == 60:
+            self.TIMER = int(bin(self.TIMER)[:6] + bin(self.ACC)[2:], base=2)
+        elif inst == 61:
+            self.TIMER = int(bin(self.ACC) + bin(self.TIMER)[6:], base=2)
+        
 
     def k_inst(self, inst):
-        next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        #next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        next_instruction = int(self.ASM_MEM[self.PC+1], base=16)
 
         if inst == 64: # add <imm>
             result = self.ACC + (next_instruction & 0xF)
@@ -451,10 +473,26 @@ class arch242emu():
 
 
     def l_inst(self, inst):
-        ...
+        if inst == 72:
+            self.nop(1)
+        elif inst == 73:
+            self.nop(1)
+        elif inst == 74:
+            self.nop(1)
+        elif inst == 75:
+            self.nop(1)
+        elif inst == 76: #todo-cycle check
+            self.nop(1)
+        elif inst == 77:
+            self.nop(1)
+        elif inst == 78:
+            self.nop(1)
+        elif inst == 79:
+            self.nop(1)
 
     def m_inst(self, inst):
-        next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        #next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        next_instruction = int(self.ASM_MEM[self.PC+1], base=16)
         if 80 <= inst <= 95: # rarb
             self.RA = (inst - 80) & 0xF
             self.RB = next_instruction & 0xF
@@ -465,7 +503,8 @@ class arch242emu():
 
     def n_inst(self, inst):
 
-        next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        #next_instruction = int(self.ASM_MEM[self.PC][1], base=16)
+        next_instruction = int(self.ASM_MEM[self.PC+1], base=16)
 
         def decode_next_address(offset: int =0xF800):
             address = ((inst & 0x7) << 8) | next_instruction
@@ -524,11 +563,12 @@ class arch242emu():
             self.PC = (self.PC & 0xF800) | address
         else:
             self.PC += 2
-            
 
-
-    def nop(self):
-        self.PC +=1 #have not implemented nop for 2 byte instructions
+    def nop(self, bitwidth):
+        if bitwidth == 1:
+            self.PC += 1
+        elif bitwidth == 2:
+            self.PC += 2
 
     def bcd(self):
         if self.ACC >= 10 or self.CF:
