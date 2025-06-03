@@ -1,5 +1,5 @@
 import re
-from assembler_exceptions import *
+from exception_handler_assembler import *
 
 class Arch242Assembler:
     def __init__(self):
