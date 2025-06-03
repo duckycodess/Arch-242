@@ -1,5 +1,5 @@
-from assembler_module import Arch242Assembler
-from assembler_exceptions import *
+from module import Arch242Assembler
+from assembler.exception_handler_assembler import *
 import sys
 
 def print_error(error):
