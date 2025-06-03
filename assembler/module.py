@@ -442,13 +442,13 @@ class Arch242Assembler:
                 return [0, 0]
         
 
+
+
     def convert_to_hex_format(self):
         hexadecimal_output: list[str] = []
-
-        for i in range(0, len(self.output), 16):
-            chunk = self.output[i:i+16]
-            hexadecimal = ' '.join(f'{b:02x}' for b in chunk)
-            hexadecimal_output.append(hexadecimal)
+        
+        for byte in self.output:
+            hexadecimal_output.append(f'{byte:02x}')
         
         return '\n'.join(hexadecimal_output).encode('ascii')
 
