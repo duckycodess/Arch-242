@@ -68,7 +68,7 @@ class InvalidRegisterError(EncodingError):
 class MissingOperandError(EncodingError):
     def __init__(self, instruction, number, line_number=None, line_content=None):
         super().__init__(
-            f"Instruction '{instruction}' requires {number} arguments", 
+            f"Instruction '{instruction}' requires {number} more argument(s), you may have forgotten the immediate value", 
             line_number, 
             line_content
         ) # handle natin yung mga instructions na kulang ng arguments
@@ -113,7 +113,7 @@ class ImmediateOverflowError(ValueError):
 class ByteValueError(ValueError):
     def __init__(self, value, line_number=None, line_content=None):
         super().__init__(
-            f"Byte value {value} must be between 0x00 and 0xFF", 
+            f"Byte value {value} must be between 0x00 and 0xFF or in decimal, 0 and 255", 
             line_number, 
             line_content
         ) # medyo malaki na yung byte value
