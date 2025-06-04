@@ -442,8 +442,6 @@ class Arch242Assembler:
                 return [0, 0]
         
 
-
-
     def convert_to_hex_format(self):
         hexadecimal_output: list[str] = []
         
@@ -451,6 +449,14 @@ class Arch242Assembler:
             hexadecimal_output.append(f'{byte:02x}')
         
         return '\n'.join(hexadecimal_output).encode('ascii')
+
+    def convert_to_bin_format(self):
+        binary_output: list[str] = []
+        
+        for byte in self.output:
+            binary_output.append(f'{byte:08b}')
+        
+        return '\n'.join(binary_output).encode('ascii')
 
     def assemble_code(self, input_file: str, output_format: str) -> bytes:
         # sana naman di ka na-mistype
@@ -592,7 +598,7 @@ class Arch242Assembler:
 
         # generate na natin output mwehehe
         if output_format == 'bin':
-            return bytes(self.output)
+            return bytes(self.output) # can use self.convert_to_bin_format()
         elif output_format == 'hex':
             return self.convert_to_hex_format()
 
