@@ -1,4 +1,9 @@
 import pyxel
+#TODO:
+# - underflow check
+# - instruction ret
+# - keyboard I/O
+# - LED Matrix
 
 class arch242emu:
 
@@ -160,12 +165,12 @@ class arch242emu:
         elif inst == 10: # subc-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA] + self.CF
             self.CF = (calc >> 4 & 1) #paano ba undeflow bit?
-            self.ACC = self._overflowe(calc) #might not work?
+            self.ACC = calc #might not work?
 
         elif inst == 11: # sub-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA]
             self.CF = (calc >> 4 & 1) #paano ba undeflow bit?
-            self.ACC = self._overflowe(calc) #might not work?
+            self.ACC = calc #might not work?
 
         self.PC += 1
 
@@ -265,7 +270,7 @@ class arch242emu:
         if inst == 48: # from-ioa
             self.ACC = self.IOA
         elif inst == 49: # inc
-            self.ACC = self._overflowe(self.ACC + 1)
+            self.ACC = (self.ACC + 1) & 0xF
         elif inst == 50: # -
             self.nop(1)
         elif inst == 51: # -
@@ -279,7 +284,7 @@ class arch242emu:
 
     def bcd(self): # bcd
         if self.ACC >= 10 or self.CF:
-            self.ACC = self._overflowe(self.ACC + 6)
+            self.ACC = (self.ACC + 6) & 0xF
             self.CF = 1
         
         self.PC += 1
@@ -301,6 +306,7 @@ class arch242emu:
 
     def dec(self): # dec
         self.ACC = self.ACC - 1 #todo: underflow
+        self.PC += 1
 
     def i_inst(self, inst):
         next_instruction = int(self.ASM_MEM[self.PC+1], base=16)
