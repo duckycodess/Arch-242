@@ -73,19 +73,9 @@ class TestArch242Assembler:
             ('set-ei', [0x2C]),
             ('clr-ei', [0x2D]),
             ('ret', [0x2E]),
-            ('retc', [0x2F]),
-            ('from-pa', [0x30]),
+            ('from-ioa', [0x30]),
             ('inc', [0x31]),
-            ('to-ioa', [0x32]),
-            ('to-iob', [0x33]),
-            ('to-ioc', [0x34]),
             ('bcd', [0x36]),
-            ('timer-start', [0x38]),
-            ('timer-end', [0x39]),
-            ('from-timerl', [0x3A]),
-            ('from-timerh', [0x3B]),
-            ('to-timerl', [0x3C]),
-            ('to-timerh', [0x3D]),
             ('nop', [0x3E]),
             ('dec', [0x3F]),
         ]
@@ -341,34 +331,6 @@ class TestArch242Assembler:
             with pytest.raises(ImmediateOverflowError) as exc_info:
                 self.assembler.assemble_code(test_file, 'bin')
     
-    def test_all_timer_instructions(self):
-        test_cases = [
-            ('timer 0', [0x47, 0x00]),
-            ('timer 1', [0x47, 0x01]),
-            ('timer 2', [0x47, 0x02]),
-            ('timer 3', [0x47, 0x03]),
-            ('timer 4', [0x47, 0x04]),
-            ('timer 5', [0x47, 0x05]),
-            ('timer 6', [0x47, 0x06]),
-            ('timer 7', [0x47, 0x07]),
-            ('timer 8', [0x47, 0x08]),
-            ('timer 9', [0x47, 0x09]),
-            ('timer 10', [0x47, 0x0A]),
-            ('timer 11', [0x47, 0x0B]),
-            ('timer 12', [0x47, 0x0C]),
-            ('timer 13', [0x47, 0x0D]),
-            ('timer 14', [0x47, 0x0E]),
-            ('timer 15', [0x47, 0x0F]),
-        ]
-
-        for instruction, expected in test_cases:
-            self.assemble_and_compare(instruction, expected)
-
-        for i in range(16, 255):
-            test_file = self.create_test_file(f'timer {str(i)}')
-            with pytest.raises(ImmediateOverflowError) as exc_info:
-                self.assembler.assemble_code(test_file, 'bin')
-    
     def test_branch_instructions(self):
         asm_code = """
                 start:
@@ -379,21 +341,19 @@ class TestArch242Assembler:
                     bnez loop
                     beqz-cf loop
                     bnez-cf loop
-                    b-timer loop
                     bnz-d loop
                 loop:
                     nop
                 """
         expected = [
             0x3E,
-            0xA0, 0x11,
-            0xA8, 0x11,
-            0xB0, 0x11,
-            0xB8, 0x11,
-            0xC0, 0x11,
-            0xC8, 0x11,
-            0xD0, 0x11,
-            0xD8, 0x11,
+            0xA0, 0x0F,
+            0xA8, 0x0F,
+            0xB0, 0x0F,
+            0xB8, 0x0F,
+            0xC0, 0x0F,
+            0xC8, 0x0F,
+            0xD8, 0x0F,
             0x3E
         ]
         self.assemble_and_compare(asm_code, expected)
@@ -402,6 +362,25 @@ class TestArch242Assembler:
         asm_code = """
                     b target
                     call function
+                    nop
+                target:
+                    nop
+                function:
+                    ret
+                """
+        expected = [
+            0xE0, 0x05,
+            0xF0, 0x06,
+            0x3E,
+            0x3E,
+            0x2E
+        ]
+        self.assemble_and_compare(asm_code, expected)
+
+    def test_b_and_call_instructions_with_immediate(self):
+        asm_code = """
+                    b 5
+                    call 6
                     nop
                 target:
                     nop
@@ -589,10 +568,6 @@ class TestArch242Assembler:
         test_file = self.create_test_file('r4')
         with pytest.raises(MissingOperandError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
-        
-        test_file = self.create_test_file('timer')
-        with pytest.raises(MissingOperandError) as exc_info:
-            self.assembler.assemble_code(test_file, 'bin')
 
         test_file = self.create_test_file('add 10 10')
         with pytest.raises(MissingOperandError) as exc_info:
@@ -617,10 +592,6 @@ class TestArch242Assembler:
         test_file = self.create_test_file('r4 10 10')
         with pytest.raises(MissingOperandError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
-        
-        test_file = self.create_test_file('timer 10 10')
-        with pytest.raises(MissingOperandError) as exc_info:
-            self.assembler.assemble_code(test_file, 'bin')
     
     def test_immediate_overflow_4bit(self):
         test_file = self.create_test_file('add 16')
@@ -640,10 +611,6 @@ class TestArch242Assembler:
             self.assembler.assemble_code(test_file, 'bin')
         
         test_file = self.create_test_file('r4 16')
-        with pytest.raises(ImmediateOverflowError) as exc_info:
-            self.assembler.assemble_code(test_file, 'bin')
-        
-        test_file = self.create_test_file('timer 16')
         with pytest.raises(ImmediateOverflowError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
 
@@ -837,7 +804,6 @@ loop:
                     add 15
                     sub 0
                     sub 15
-                    timer 0
                     acc 0
                     acc 15
                     rarb 0
@@ -850,7 +816,6 @@ loop:
             0x40, 0x0F,
             0x41, 0x00,
             0x41, 0x0F,
-            0x47, 0x00,
             0x70,
             0x7F,
             0x50, 0x00,
@@ -980,12 +945,12 @@ loop:
         test_file = self.create_test_file('nop')
         
         # Test bin output
-        # bin_data = self.assembler.assemble_code(test_file, 'bin')
-        # self.assembler.write_output(bin_data, test_file, 'bin')
-        # output_file = test_file.rsplit('.', 1)[0] + '.bin'
-        # assert os.path.exists(output_file)
-        # with open(output_file, 'rb') as f:
-        #     assert f.read() == b'\x3e'
+        bin_data = self.assembler.assemble_code(test_file, 'bin')
+        self.assembler.write_output(bin_data, test_file, 'bin')
+        output_file = test_file.rsplit('.', 1)[0] + '.bin'
+        assert os.path.exists(output_file)
+        with open(output_file, 'rb') as f:
+            assert f.read() == b'\x3e'
         
         # Test hex output
         hex_data = self.assembler.assemble_code(test_file, 'hex')
@@ -995,53 +960,6 @@ loop:
         with open(output_file, 'rb') as f:
             assert f.read() == b'3e'
 
-    
-    def test_timer_related_instructions(self):
-        asm_code = """
-                    timer 10
-                    timer-start
-                    from-timerl
-                    from-timerh
-                    to-timerl
-                    to-timerh
-                    b-timer running
-                    timer-end
-                running:
-                    nop
-                """
-        expected = [
-            0x47, 0x0A,
-            0x38,
-            0x3A,
-            0x3B,
-            0x3C,
-            0x3D,
-            0xD0, 0x0A,
-            0x39,
-            0x3E
-        ]
-        self.assemble_and_compare(asm_code, expected)
-    
-    def test_io_instructions(self):
-        asm_code = """
-                    acc 5
-                    to-ioa
-                    acc 10
-                    to-iob
-                    acc 15
-                    to-ioc
-                    from-pa
-                """
-        expected = [
-            0x75,
-            0x32,
-            0x7A,
-            0x33,
-            0x7F,
-            0x34,
-            0x30
-        ]
-        self.assemble_and_compare(asm_code, expected)
     
     def test_arithmetic_operations(self):
         asm_code = """
@@ -1073,7 +991,7 @@ loop:
             0x31,
             0x0C,
             0x0E,
-            0x10,
+                        0x10,
             0x0B,
             0x0A,
             0x41, 0x07,
@@ -1139,13 +1057,12 @@ loop:
     def test_control_flow_operations(self):
         asm_code = """
                     ret
-                    retc
                     set-ei
                     clr-ei
                     set-cf
                     clr-cf
                 """
-        expected = [0x2E, 0x2F, 0x2C, 0x2D, 0x2B, 0x2A]
+        expected = [0x2E, 0x2C, 0x2D, 0x2B, 0x2A]
         self.assemble_and_compare(asm_code, expected)
 
     
@@ -1218,3 +1135,46 @@ loop:
             0x37, 0x3E
         ]
         self.assemble_and_compare(asm_code, expected)
+
+    def test_io_instruction(self):
+        asm_code = """
+                    from-ioa
+                    acc 5
+                    nop
+                """
+        expected = [
+            0x30,
+            0x75,
+            0x3E
+        ]
+        self.assemble_and_compare(asm_code, expected)
+
+    def test_removed_instructions_error(self):
+        # test that removed instructions raise UnknownInstructionError
+        removed_instructions = [
+            'retc',
+            'timer-start',
+            'timer-end',
+            'timer 10',
+            'b-timer loop'
+        ]
+        
+        for instruction in removed_instructions:
+            test_file = self.create_test_file(instruction)
+            with pytest.raises(UnknownInstructionError):
+                self.assembler.assemble_code(test_file, 'bin')
+        
+        removed_instructions = [
+            'to-ioa',
+            'to-iob', 
+            'to-ioc',
+            'from-timerl',
+            'from-timerh',
+            'to-timerl',
+            'to-timerh',
+        ]
+
+        for instruction in removed_instructions:
+            test_file = self.create_test_file(instruction)
+            with pytest.raises(InvalidRegisterError):
+                self.assembler.assemble_code(test_file, 'bin')
