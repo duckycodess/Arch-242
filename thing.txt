@@ -1,0 +1,16 @@
+0000 (0) -> no input
+0001 (1) -> up
+0010 (2) -> down
+0011 (3) -> up + down
+0100 (4) -> left
+0101 (5) -> left + up
+0110 (6) -> left + down
+0111 (7) -> up + down + left
+1000 (8) -> right
+1001 (9) -> right + up
+1010 (10) -> right + down
+1011 (11) -> right + up + down
+1100 (12) -> right + left
+1101 (13) -> right + left + up
+1110 (14) -> right + left + down
+1111 (15) -> all keys

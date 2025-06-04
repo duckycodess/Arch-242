@@ -2,16 +2,15 @@ import pyxel
 #TODO:
 # - underflow check
 # - instruction ret
-# - keyboard I/O
-# - LED Matrix
+# - keyboard I/O (support diagonal inputs)
 
 class arch242emu:
 
     # ---/ INITIALIZE PYXEL AND EMULATOR ELEMENTS /---
 
     def __init__(self, binfile):
-        pyxel.init(320,640,title="Arch-242 LED Matrix")
-        #pyxel.load('assets/assets.pyxres')
+        pyxel.init(640,320,title="Arch-242 LED Matrix")
+        pyxel.load('assets/assets.pyxres')
 
         self.RA = 0b0000
         self.RB = 0b0000
@@ -31,6 +30,28 @@ class arch242emu:
         self.SHUTDOWN = False
         self.PC = 0 #use this to iterate through ASM_MEM
 
+        self.HALT = False
+        self.LED = [
+            [0,0,0,0], #0
+            [1,0,0,0], #1
+            [0,1,0,0], #2
+            [1,1,0,0], #3
+            [0,0,1,0], #4
+            [1,0,1,0], #5
+            [0,1,1,0], #6
+            [1,1,1,0], #7
+            [0,0,0,1], #8
+            [1,0,0,1], #9
+            [0,1,0,1], #10
+            [1,1,0,1], #11
+            [0,0,1,1], #12
+            [1,0,1,1], #13
+            [0,1,1,1], #14
+            [1,1,1,1], #15
+        ]
+
+        self.LED_DEBUG = 0
+        self.LED_EXP = 0
         #retrieve the asm file and store it into ASM_MEM
         #TODO: fix this in such a way that we have to input an asm file
         with open(binfile, 'rb') as bin:
@@ -113,7 +134,7 @@ class arch242emu:
         else: # unknown instruction
             print('illegal instruction detected')
 
-    # ---/ EMULATED INSTRUCTIONS /---
+    # ---/ EMULATOR: EMULATED INSTRUCTIONS /---
 
     def a_inst(self, inst):
         if inst == 0: # rot-r
@@ -412,7 +433,23 @@ class arch242emu:
 
         self.CYCLESKIP = True
 
-    # ---/ PYXEL + EMULATOR ROOT CODE /---
+    # ---/ LED MATRIX DEBUG /---
+
+    def LED_CHECK(self):
+        if self.LED_DEBUG + 192 <= 241:
+            if self.MEM[192 + self.LED_DEBUG] == 8:
+                self.MEM[192 + self.LED_DEBUG] = 0
+                self.LED_DEBUG += 1
+                self.LED_EXP = 0
+
+            self.MEM[192 + self.LED_DEBUG] = 2**self.LED_EXP
+            self.LED_EXP += 1
+        else:
+            self.LED_DEBUG = 0
+
+        #print(f'Memory of Memory Address {192 + self.LED_DEBUG}: {bin(self.MEM[192 + self.LED_DEBUG])}')
+
+    # ---/ KEYBOARD IO + EMULATOR ROOT CODE /---
 
     def update(self):
         #emulator runs here
@@ -429,15 +466,47 @@ class arch242emu:
                 self.CLOCK += 1
                 self.CYCLESKIP = False
 
+        #IO check
+        if pyxel.btn(pyxel.KEY_UP):
+            print("UP KEY PRESSED")
+            self.IOA = 1    #correct me if im wrong
+        elif pyxel.btn(pyxel.KEY_DOWN):
+            print("DOWN KEY PRESSED")
+            self.IOA = 2
+        elif pyxel.btn(pyxel.KEY_LEFT):
+            print("LEFT KEY PRESSED")
+            self.IOA = 4
+        elif pyxel.btn(pyxel.KEY_RIGHT):
+            print("RIGHT KEY PRESSED")
+            self.IOA = 8
+        else:
+            self.IOA = 0
+
+        print(f'Current value of IOA: {bin(self.IOA)}')
+
+        self.LED_CHECK() #LED DEBUG
+        
+    # ---/ LED MATRIX DRAW CODE /---
+
     def draw(self):
         #TODO: Make a 20x10 column LED Matrix.
         #somehow probe all of these into the emulator. Future me will handle this I trust
         pyxel.cls(0)
 
-        #idea: since led values on the matrix are fixed, directly access the memory values and check for their values
-        for i in range(10):
-            for j in range(20):
-                pyxel.blt(i*32,j*32,0,0,0,32,32,0)
+        rowval = 0
+        colval = 0
+
+        for i in self.MEM[192:242]:
+            if colval == 20: 
+                rowval += 1
+                colval = 0
+
+            for c,k in enumerate(self.LED[i]):
+                if k:
+                    pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0) #NOTE:Change this
+                else:
+                    pyxel.blt((c+colval)*32,rowval*32,0,0,0,32,32,0)
+            colval += 4
 
 arch242emu('test.bin')
 
