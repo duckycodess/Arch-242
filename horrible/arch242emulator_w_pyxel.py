@@ -36,10 +36,16 @@ import os
 # Memory address 192 -> 255 memory-mapped to LED Matrix
 # Each nibble correspond to an LED 
 
-# phase 1: arch242 emulator
+# phase 1: arch242 emulator (inside Pyxel class)
 
-class arch242emu():
+
+# phase 2: Pyxel window for LED Matrix (i think the emulator has to be inside here now that i think about it...)
+#NOTE: If theres an error: [pyo3_runtime.PanicException: Unknown resource file version] when running this in Visual Studio Code, run this in the terminal instead...
+
+class window():
     def __init__(self, binfile):
+        pyxel.init(320,640,title="Arch-242 LED Matrix")
+        #pyxel.load('assets/assets.pyxres')
         #initialize registers and other components
         #will be in binary for now, but ill see if i can just somehow convert them into integers during emulation process
 
@@ -63,6 +69,7 @@ class arch242emu():
 
         self.EI = 0b0 #?
         self.PA = 0b0 #?
+        self.TEMP = 0b0 #?
 
         self.PC = 0 #use this to iterate through ASM_MEM
 
@@ -79,44 +86,42 @@ class arch242emu():
             
         self.MEM = [0b00000000]*256 #assuming byte-addressible memory
 
-        while self.PC != len(self.ASM_MEM): #missing edge case: shutdown instruction
-            self.read_inst(self.PC, self.ASM_MEM)
-            # self.PC += 1 # this will fuck up branch instructions, better to put this inside individual instruction functions maybe?
+    # def preprocess_mem(self, asm): #unused
+    #     #notes for unfixed_instruction ranges:
+    #     # rarb: 80 -> 95 (als rcrd??? how tf do we differentiate between the two)
+    #     # rcrd: 96 -> 111 (assuming rcrd is actually 0110XXXX)
+    #     # b-bit: 128 -> 159
+    #     # bnz-a: 160 -> 167
+    #     # bnz-b: 168 -> 175
+    #     # beqz: 176 -> 183
+    #     # bnez: 184 -> 191
+    #     # beqz-cf: 192 -> 199
+    #     # bnez-cf: 200 -> 207
+    #     # b-timer: 208 -> 215
+    #     # bnz-d: 216 -> 223
+    #     # b: 224 -> 239
+    #     # call: 240 -> 255
 
-    def preprocess_mem(self, asm): #unused
-        #notes for unfixed_instruction ranges:
-        # rarb: 80 -> 95 (als rcrd??? how tf do we differentiate between the two)
-        # rcrd: 96 -> 111 (assuming rcrd is actually 0110XXXX)
-        # b-bit: 128 -> 159
-        # bnz-a: 160 -> 167
-        # bnz-b: 168 -> 175
-        # beqz: 176 -> 183
-        # bnez: 184 -> 191
-        # beqz-cf: 192 -> 199
-        # bnez-cf: 200 -> 207
-        # b-timer: 208 -> 215
-        # bnz-d: 216 -> 223
-        # b: 224 -> 239
-        # call: 240 -> 255
+    #     fixed_inst = [55, 64, 65, 66, 67, 68, 69, 70, 71]
+    #     processed = []
 
-        fixed_inst = [55, 64, 65, 66, 67, 68, 69, 70, 71]
-        processed = []
+    #     i = 0
+    #     while i < len(asm):
+    #         val = int(asm[i], base=16)
+    #         if val in fixed_inst:
+    #             processed.append((asm[i], asm[i+1]))
+    #             i += 2
+    #         elif ((80 <= val) and (val <= 111)) or val >= 128:
+    #             processed.append((asm[i], asm[i+1]))
+    #             i += 2
+    #         else:
+    #             processed.append((asm[i],))
+    #             i += 1
 
-        i = 0
-        while i < len(asm):
-            val = int(asm[i], base=16)
-            if val in fixed_inst:
-                processed.append((asm[i], asm[i+1]))
-                i += 2
-            elif ((80 <= val) and (val <= 111)) or val >= 128:
-                processed.append((asm[i], asm[i+1]))
-                i += 2
-            else:
-                processed.append((asm[i],))
-                i += 1
+    #     return processed
 
-        return processed
 
+        pyxel.run(self.update, self.draw)
 
     def read_inst(self, pc, inst):
         #read instruction from ASM_MEM
@@ -287,16 +292,16 @@ class arch242emu():
         self.PC += 1
 
     def b_inst(self, inst):
-        if inst == 4:
+        if inst == 4: # from-mda
             self.ACC = self.MEM[(self.RB << 4) + self.RA]
 
-        elif inst == 5:
+        elif inst == 5: # to-mda
             self.MEM[(self.RB << 4) + self.RA] = self.ACC
 
-        elif inst == 6:
+        elif inst == 6: # from-mdc
             self.ACC = self.MEM[(self.RD << 4) + self.RC]
 
-        elif inst == 7:
+        elif inst == 7: # to-mdc
             self.MEM[(self.RD << 4) + self.RC] = self.ACC
 
         self.PC += 1
@@ -593,31 +598,39 @@ class arch242emu():
         self.ACC = (inst-112)
         self.PC += 1
 
-# phase 2: Pyxel window for LED Matrix (i think the emulator has to be inside here now that i think about it...)
-
-class window():
-    def __init__(self):
-        pyxel.init(512,512,title="Arch-242 LED Matrix")
-        pyxel.run(self.update, self.draw)
-
     def update(self):
         #only supports arrow keys, although the project specificiations mentions having a keyboard for an I/O. Ill deal with that next time.
         #somehow probe all of these into the emulator. Future me will handle this I trust
+        if self.PC < len(self.ASM_MEM):
+            self.read_inst(self.PC, self.ASM_MEM)
+            # self.PC += 1 # this will fuck up branch instructions, better to put this inside individual instruction functions maybe?
+
         if pyxel.btn(pyxel.KEY_UP):
             print("UP KEY PRESSED")
+            self.IOA = 1    #correct me if im wrong
         elif pyxel.btn(pyxel.KEY_DOWN):
             print("DOWN KEY PRESSED")
+            self.IOA = 2
         elif pyxel.btn(pyxel.KEY_LEFT):
             print("LEFT KEY PRESSED")
+            self.IOA = 4
         elif pyxel.btn(pyxel.KEY_RIGHT):
             print("RIGHT KEY PRESSED")
+            self.IOA = 8
+        else:
+            self.IOA = 0
 
     def draw(self):
         #TODO: Make a 20x10 column LED Matrix.
         #somehow probe all of these into the emulator. Future me will handle this I trust
         pyxel.cls(0)
 
-arch242emu('test4.bin')
-window()
+        #idea: since led values on the matrix are fixed, directly access the memory values and check for their values
+        for i in range(10):
+            for j in range(20):
+                pyxel.blt(i*32,j*32,0,0,0,32,32,0)
+
+
+window('test2.bin')
 
     
