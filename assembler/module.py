@@ -31,19 +31,9 @@ class Arch242Assembler:
             'set-ei': 0x2C,
             'clr-ei': 0x2D,
             'ret': 0x2E,
-            'retc': 0x2F,
-            'from-pa': 0x30,
+            'from-ioa': 0x30,
             'inc': 0x31,
-            'to-ioa': 0x32,
-            'to-iob': 0x33,
-            'to-ioc': 0x34,
             'bcd': 0x36,
-            'timer-start': 0x38,
-            'timer-end': 0x39,
-            'from-timerl': 0x3A,
-            'from-timerh': 0x3B,
-            'to-timerl': 0x3C,
-            'to-timerh': 0x3D,
             'nop': 0x3E,
             'dec': 0x3F,
         }
@@ -55,7 +45,6 @@ class Arch242Assembler:
             'bnez': 0xB8,
             'beqz-cf': 0xC0,
             'bnez-cf': 0xC8,
-            'b-timer': 0xD0,
             'bnz-d': 0xD8
         }
         
@@ -221,7 +210,7 @@ class Arch242Assembler:
         if instruction == 'shutdown':
             return [0x37, 0x3E]
         
-        known_two_byte_instructions = ['add', 'sub', 'and', 'xor', 'or', 'r4', 'timer', 
+        known_two_byte_instructions = ['add', 'sub', 'and', 'xor', 'or', 'r4',
         'acc', 'rarb', 'rcrd', 'b', 'call', 'b-bit'] + list(self.branch_instructions.keys())
         if instruction not in known_two_byte_instructions:
             # tangina anong instruction nilagay mo pag umabot dito HAHAHAHAHAHAAHAHAHA
@@ -265,18 +254,6 @@ class Arch242Assembler:
                         'r4': 0x46
                     }
                     return [opcode_map[instruction], immediate_value & 0x0F]
-                
-                case 'timer':
-                    # timer accepts 8-bit values onlyyyyyy
-                    if immediate_value > 0x0F:
-                        raise ImmediateOverflowError(
-                            immediate_value,
-                            4,
-                            15,
-                            self.current_line_number,
-                            self.current_line_content
-                        )
-                    return [0x47, immediate_value & 0x0F]
                 
                 case 'acc':
                     if immediate_value > 0x0F:
@@ -397,7 +374,7 @@ class Arch242Assembler:
                 
                 if target_address > 0xFFF:
                     raise AddressOutOfRangeError(
-                        target_address,
+                                                target_address,
                         0xFFF,
                         self.current_line_number,
                         self.current_line_content
