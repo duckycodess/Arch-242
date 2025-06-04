@@ -1,7 +1,7 @@
 # WE'RE LIMITED TO MEMORY FROM 0 to 255
 
 # Memory Mappings
-# RAM [0 to 119] or [0x00 to 0x77], this is where we'll do some computations
+# RAM [0 to 119] or [0x00 to 0x77], this is where we'll do some idx computations, why 0x00 to 0x77? each nibble index that we deal with is from 0 to 7
 # direction [128] or [0x80], 0=up, 1=right, 2=down, 3=left
 # head index [129, 130] or [0x81, 0x82], two alloted for [row, col]
 # tail index [131, 132] or [0x83, 0x84], two alloted for [row, col]
@@ -9,27 +9,28 @@
 # delay [135] or [0x87], delay for each frame
 # score [136, 137] or [0x88, 0x89], two alloted since max score is 61
 
-# precomputed coordinates to ng LED matrix so madali magtranslate ng row, col coords
-# high nibble [138 to 145] or [0x8A to 0x91]
-# low nibble [146 to 153] or [0x92 to 0x99]
+# precomputed coordinates para madali magtranslate ng row, col coords into LED matrix coordinates
+# high nibble [144 to 151] or [0x90 to 0x97]
+# low nibble [160 to 167] or [0xA0 to 0xA7]
 
-# 0x8A:  0xC  # high4(0xC0) = 0xC
-# 0x8B:  0xC  # high4(0xC8) = 0xC
-# 0x8C:  0xD  # high4(0xD0) = 0xD
-# 0x8D:  0xD  # high4(0xD8) = 0xD
-# 0x8E:  0xE  # high4(0xE0) = 0xE
-# 0x8F:  0xE  # high4(0xE8) = 0xE
-# 0x90:  0xF  # high4(0xF0) = 0xF
-# 0x91:  0xF  # high4(0xF8) = 0xF
+# precomputed table
+# 0x90:  0xC  # high4(0xC0) 
+# 0x91:  0xC  # high4(0xC8) 
+# 0x92:  0xD  # high4(0xD0) 
+# 0x93:  0xD  # high4(0xD8) 
+# 0x94:  0xE  # high4(0xE0) 
+# 0x95:  0xE  # high4(0xE8) 
+# 0x96:  0xF  # high4(0xF0) 
+# 0x97:  0xF  # high4(0xF8) 
 
-# 0x92:  0x0  # low4(0xC0) = 0x0
-# 0x93:  0x8  # low4(0xC8) = 0x8
-# 0x94:  0x0  # low4(0xD0) = 0x0
-# 0x95:  0x8  # low4(0xD8) = 0x8
-# 0x96:  0x0  # low4(0xE0) = 0x0
-# 0x97:  0x8  # low4(0xE8) = 0x8
-# 0x98:  0x0  # low4(0xF0) = 0x0
-# 0x99:  0x8  # low4(0xF8) = 0x8
+# 0xA0:  0x0  # low4(0xC0)
+# 0xA1:  0x8  # low4(0xC8)
+# 0xA2:  0x0  # low4(0xD0)
+# 0xA3:  0x8  # low4(0xD8)
+# 0xA4:  0x0  # low4(0xE0)
+# 0xA5:  0x8  # low4(0xE8)
+# 0xA6:  0x0  # low4(0xF0)
+# 0xA7:  0x8  # low4(0xF8)
 
 # this is where the emulator puts the info about which keys are pressed
 # ioa [176] or [0xB0], 0001=up, 0010=right, 0100=down, 1000=left 
@@ -37,6 +38,53 @@
 # ioc [178] or [0xB2] (unused so far)
 
 # led matrix/grid [192 to 255] or [0xC0 to 0xFF]
+
+# ========== precomputed table ==========
+acc 0xC
+rcrd 0x90
+to-mdc
+rcrd 0x91
+to-mdc
+
+acc 0xD
+rcrd 0x92
+to-mdc
+rcrd 0x93
+to-mdc
+
+acc 0xE
+rcrd 0x94
+to-mdc
+rcrd 0x95
+to-mdc
+
+acc 0xF
+rcrd 0x96
+to-mdc
+rcrd 0x97
+to-mdc
+
+
+acc 0x0
+rcrd 0xA0
+to-mdc
+rcrd 0xA2
+to-mdc
+rcrd 0xA4
+to-mdc
+rcrd 0xA6
+to-mdc
+
+acc 0x8
+rcrd 0xA1
+to-mdc
+rcrd 0xA3
+to-mdc
+rcrd 0xA5
+to-mdc
+rcrd 0xA7
+to-mdc
+# /========== precomputed table ==========/ 
 
 # ========== start ========== 
 start:
@@ -118,11 +166,12 @@ initialize_states:
     rarb 0xDE
     to-mba
 
+    timer-start # begin counting (increments every 4 clock edges)
+# /========== start ==========/ 
+
 
 # ========== main game loop ========== 
 game_loop:
-    timer-start # begin counting (increments every 4 clock edges)
-
     acc 0x1
     b write_led
 
@@ -139,6 +188,8 @@ after_read_keypad:
     b move_snake
 
 after_move:
+    # TODO: random spawning of food
+    # TODO: update score
     # TODO: put a delay here for the next frame
     b game_loop
 # /========== main game loop ==========/ 
@@ -147,9 +198,10 @@ after_move:
 
 # ========== write_led ========== 
 write_led:
-    # idk what to do here
+    # this is not important, kinopya ko lang format ng game loop sa lab07
     b after_write_led
 # /========== write_led ==========/
+
 
 
 # ========== read_led ========== 
@@ -252,6 +304,7 @@ move_snake:
     beqz move_left # ACC - 3 = 0 would mean na left
 
     # pag nakarating pa dito what the fuck na lang
+    b game_over # pandebug nalang
 
 move_up:
     from-ra # ACC = old_head_row
@@ -308,27 +361,138 @@ move_left:
     b check_if_self_collision
     
 check_if_self_collision:
-    # TODO: here we check if new_head_row (RA) and new_head_col (RB) collides with snake body 
-    # - we do this by scanning the grid, checking if there are other indices except the head, and food that is the same with the head
+    # here we check if new_head_row (RA) and new_head_col (RB) collides with snake body 
 
     # PSEUDOCODE
-    # for RC = 0x0..0x7:
-    #     for RD = 0x0..0x7:
-    #         if (RC, RD) == (food_row, food_col): 
-    #             skip (don't treat food as a collision)
-    #         else:
-    #             if (RC, RD) == (RA, RB) # either this is the head itself or 
-    #             the body
-    #                 RE++
-    # if RE == 2:
-    #     # we have collided with the head coord itself, and the body itself
-    #     b collision
-    # else: 
-    #     # no collision
+    # a smart implementation would be 
+    # 1. store RA in temp MEM[0xAA] and RB in temp MEM[0xAB] to retain RA, RB information
+    #
+    # 2. translate(RA, RB)
+    # translatedRB = MEM[0x90 + RA] = MEM[0x9:RA]
+    # translatedRA = MEM[0xA0 + RA] + RB = MEM[0xA:RA] + RB
+
+    # if MEM[translatedRB:translatedRA] = 0x1:
+    #     if RA == food_row, check food_col
+    #     else: b collision
+    #     check food_col:   
+    #         if RB == food_col: b check_if_food
+    #         else: b collisiion
+    # else:
     #     b check_if_food
 
+    # IMPLEMENTATION
+    # 1.1 store RA temporarily in MEM[0xAA]
+    from-ra # ACC = REG[RA] = new_head_row
+    rcrd 0xAA
+    to-mdc # MEM[0xAA] = new_head_row
+
+    # 1.2 store RB temporarily in MEM[0xAB]
+    from-rb # ACC = REG[RB] = new_head_col
+    rcrd 0xAB
+    to-mdc # MEM[0xAB] = new_head_col
+
+
+    # 2.1 translate RB into LED matrix index
+    acc 0x9
+    to-rb # REG[translatedRB] = 0x9
+    
+    rcrd 0xAA
+    from-mdc # ACC = REG[RA]
+    to-ra # REG[translatedRA] = 0xRA
+
+    from-mba # ACC = MEM[0x9:RA]
+    rcrd 0xAC
+    to-mdc # store translatedRB temporarily in MEM[0xAC], MEM[0xAC] = MEM[0x9:RA]
+
+    # 2.2 translate RA into LED matrix index
+    acc 0xA
+    to-rb # REG[translatedRB] = 0xA
+
+    rcrd 0xAA
+    from-mdc # ACC = REG[RA]
+    to-ra # REG[translatedRA] = 0xRA
+
+    from-mba # ACC = MEM[0xA:RA]
+    rcrd 0xAD # 
+    to-mdc # store partially_translatedRB to MEM[0xAD], MEM[0xAD] = MEM[0xA:RA]
+
+    rcrd 0xAB
+    from-mdc # ACC = REG[RB]
+    
+    rarb 0xAD
+    add-mba # ACC = ACC + MEM[0xAD] = REG[RB] + MEM[0xA:RA]
+    to-ra # REG[translatedRA] = ACC = REG[RB] + MEM[0xA:RA]
+    to-mba # MEM[0xAD] = REG[RB] + MEM[0xA:RA], just in case
+
+    # fetch translatedRB again
+    rcrd 0xAC
+    from-mdc 
+    to-rb
+
+    # summary:
+    # 0xAA = RA
+    # 0xAB = RB
+    # 0xAC = translatedRB
+    # 0xAD = translatedRA
+    # Currently here, we use translatedRA and translatedRB
+
+    # 3. check if translatedRA and translatedRB is on
+    acc 0x1
+    and-ba # ACC = 0x1 & MEM[RB:RA]
+    bnez check_if_food_or_body # if LED is turned on, it must be a food or body
+
+    # else, go to check_if_food to know whether if the snake would grow or retain
+
+    # turn back RA
+    rcrd 0xAA
+    from-mdc # ACC = MEM[0xAA] = RA
+    to-ra # REG[RA] = ACC
+
+    # turn back RB
+    rcrd 0xAB
+    from-mdc # ACC = MEM[0xAB] = RB
+    to-rb # REG[RB] = ACC
+
+    b check_if_food
+
+check_if_food_or_body:
+    # turn back RA
+    rcrd 0xAA
+    from-mdc # ACC = MEM[0xAA] = RA
+    to-ra # REG[RA] = ACC
+
+    # turn back RB
+    rcrd 0xAB
+    from-mdc # ACC = MEM[0xAB] = RB
+    to-rb # REG[RB] = ACC
+
+    b check_same_food_row
+
+check_same_food_row:
+    # if RA == food_row
+    # 1. load the food_row from MEM[0x85]
+    rcrd 0x85
+    from-mdc # ACC = MEM[0x85] = food_row
+    to-mba # MEM[RB:RA] = ACC = food_row (note this is safe since we've allocated memory for 0x00 to 0x77, also temporary lang)
+    from-ra # ACC = new_head_row
+    sub-mba # ACC = new_head_row - food_row
+    bnez collision # if new_head_row != food_row, then there's a collision since it must be the body
+
+    # else, another check pa
+    # if RB == food_col
+    # 2. load the food_col from MEM[0x86]
+    rcrd 0x86 
+    from-mdc # ACC = MEM[0x86] = food_col
+    to-mba # MEM[RB:RA] = ACC = food_col
+    from-rb # ACC = new_head_col
+    sub-mba # ACC = new_head_col - food_col
+    bnez collision # if new_head_col != food_col, then there's a collision since it must be the body
+   
+    # at this point, it's just the food! go to check_if_food to know whether the snake would grow or retain
+    b check_if_food
+
 check_if_food:
-    # TODO: here we check if new_head_row (RA) and new_head_col (RB) collides with a food
+    # here we check if new_head_row (RA) and new_head_col (RB) collides with a food
 
     # PSEUDOCODE
     # if (food_row, food_col) == (RA, RB):
@@ -375,5 +539,6 @@ collision:
     b game_over
 
 game_over:
+    # OPTIONAL? some indication to know it's game over
     b start
 # /========== game over ==========/
