@@ -1,13 +1,28 @@
 # WE'RE LIMITED TO MEMORY FROM 0 to 255
 
+# this is our 8 by 8 game grid now
+# 197 (bit 0-3), 198 (bit 0-3)
+# 202 (bit 0-3), 203 (bit 0-3)
+# 207 (bit 0-3), 208 (bit 0-3)
+# 212 (bit 0-3), 213 (bit 0-3)
+# 217 (bit 0-3), 218 (bit 0-3)
+# 222 (bit 0-3), 223 (bit 0-3)
+# 227 (bit 0-3), 228 (bit 0-3)
+# 232 (bit 0-3), 233 (bit 0-3)
+# NOTE: we update our translation method to LED matrix in every function
+
 # Memory Mappings
-# RAM [0 to 119] or [0x00 to 0x77], this is where we'll do some idx computations, why 0x00 to 0x77? each nibble index that we deal with is from 0 to 7
+# snake body [0 to 127] or [0x00 to 0x7F], TODO: implement a queue
+# we split this into rows[] and cols[] arrays so
+# rows [0x00 to 0x3F]
+# cols [0x40 to 0x7F]
+
 # direction [128] or [0x80], 0=up, 1=right, 2=down, 3=left
 # head index [129, 130] or [0x81, 0x82], two alloted for [row, col]
 # tail index [131, 132] or [0x83, 0x84], two alloted for [row, col]
 # food index [133, 134] or [0x85, 0x86], two alloted for [row, col]
 # delay [135] or [0x87], delay for each frame
-# score [136, 137] or [0x88, 0x89], two alloted since max score is 61
+# score [136, 137] or [0x88, 0x89], two alloted since max score is 61, most significant ung 0x88, pero required lang naman is max score to support is 15, so we'll just read from 0x89
 
 # precomputed coordinates para madali magtranslate ng row, col coords into LED matrix coordinates
 # high nibble [144 to 151] or [0x90 to 0x97]
@@ -36,6 +51,10 @@
 # ioa [176] or [0xB0], 0001=up, 0010=right, 0100=down, 1000=left 
 # iob [177] or [0xB1] (unused so far)
 # ioc [178] or [0xB2] (unused so far)
+
+# two nibbles are alloted for each pointer since 0..63 requires 6 bits
+# queue head_ptr [179, 180] or [0xB3, 0xB4]
+# queue tail_ptr [181, 182] or [0xB5, 0xB6]
 
 # led matrix/grid [192 to 255] or [0xC0 to 0xFF]
 
@@ -126,23 +145,23 @@ initialize_states:
     to-mba # MEM[0x89] = 0x0
 
 
-    # 5. place snake body in center LED = [0xD9, 0xDA, 0xDB]
-    # 5.1 put head coords (3,3) to MEM[0x81] and MEM[0x82] respectively
+    # 4. place snake body in center LED = [0xD9, 0xDA, 0xDB]
+    # 4.1 put head coords (3,3) to MEM[0x81] and MEM[0x82] respectively
     acc 0x3
     rarb 0x81
     to-mba
     rarb 0x82
     to-mba
 
-    # 5.2 put tail coords (1,3) to MEM[0x83] and MEM[0x84] respectively
-    acc 0x1
+    # 4.2 put tail coords (3,1) to MEM[0x83] and MEM[0x84] respectively
+    acc 0x3
     rarb 0x83
     to-mba
-    acc 0x3
+    acc 0x1
     rarb 0x84
     to-mba
 
-    # 5.3 light up the snake in the led matrix
+    # 4.3 light up the snake in the led matrix
     acc 0x1
     rarb 0xD9
     to-mba
@@ -150,6 +169,66 @@ initialize_states:
     to-mba
     rarb 0xDB
     to-mba
+
+
+    # 5. enqueue each body parts in the queue
+    # 5.1 enqueue (3,1) at body[0]
+    # set MEM[0x00] = 0x3 (row[0] = 0x1)
+    # set MEM[0x40] = 0x1 (col[0] = 0x3)
+    acc 0x3
+    rarb 0x00
+    to-mba # MEM[0x00] = 0x3
+
+    acc 0x1
+    rarb 0x40
+    to-mba # MEM[0x40] = 0x1
+
+    # 5.2 enqueue (3,2) at body[1]
+    # set MEM[0x01] = 0x3 (row[1] = 0x2)
+    # set MEM[0x41] = 0x2 (col[1] = 0x3)
+    acc 0x3
+    rarb 0x01
+    to-mba # MEM[0x01] = 0x3
+    
+    acc 0x2
+    rarb 0x41
+    to-mba # MEM[0x41] = 0x2
+
+    # 5.3 enqueue (3,3) at body[2]
+    # set MEM[0x02] = 0x3 (row[2] = 0x3)
+    # set MEM[0x42] = 0x3 (col[2] = 0x3)
+    acc 0x3
+    rarb 0x02
+    to-mba # MEM[0x02] = 0x3
+
+    acc 0x3
+    rarb 0x42
+    to-mba # MEM[0x42] = 0x3
+
+    # 5.4 set head_ptr to body[2]
+    # set MEM[0xB3] = 0x0 
+    # set MEM[0xB4] = 0x2 
+    acc 0x0
+    rarb 0xB3
+    to-mba # MEM[0xB3] = 0x0
+
+    acc 0x2
+    rarb 0xB4
+    to-mba # MEM[0xB4] = 0x2
+
+    # 5.5 set tail_ptr to body[0]
+    # set MEM[0xB5] = 0x0 
+    # set MEM[0xB6] = 0x0 
+    acc 0x0
+    rarb 0xB5
+    to-mba # MEM[0xB4] = 0x0
+
+    rarb 0xB6
+    to-mba # MEM[0xB6] = 0x0
+
+    # visually, it looks like
+    # tail              head
+    # (1,3) -> (2,3) -> (3,3)
 
 
     # 6. spawn the first food initially beside the snake LED = [0xDE]
@@ -166,7 +245,7 @@ initialize_states:
     rarb 0xDE
     to-mba
 
-    timer-start # begin counting (increments every 4 clock edges)
+    b game_loop
 # /========== start ==========/ 
 
 
@@ -184,13 +263,13 @@ after_read_keypad:
     # - compute new head/tail based from direction from IOA
     # - handle head to bounds or head to body collisions
     # - eating 
+    # - update queue
+    # - update score when eating
     # - detecting game over
     b move_snake
 
 after_move:
-    # TODO: random spawning of food
-    # TODO: update score
-    # TODO: put a delay here for the next frame
+    # TODO: pseudo random spawning of food, depende na lang sa position ng head or tail
     b game_loop
 # /========== main game loop ==========/ 
 
@@ -394,11 +473,11 @@ check_if_self_collision:
 
     # 2.1 translate RB into LED matrix index
     acc 0x9
-    to-rb # REG[translatedRB] = 0x9
+    to-rb # REG[RB] = 0x9
     
     rcrd 0xAA
     from-mdc # ACC = REG[RA]
-    to-ra # REG[translatedRA] = 0xRA
+    to-ra # REG[RA] = 0xRA
 
     from-mba # ACC = MEM[0x9:RA]
     rcrd 0xAC
@@ -406,15 +485,15 @@ check_if_self_collision:
 
     # 2.2 translate RA into LED matrix index
     acc 0xA
-    to-rb # REG[translatedRB] = 0xA
+    to-rb # REG[RB] = 0xA
 
     rcrd 0xAA
     from-mdc # ACC = REG[RA]
-    to-ra # REG[translatedRA] = 0xRA
+    to-ra # REG[RA] = 0xRA
 
     from-mba # ACC = MEM[0xA:RA]
     rcrd 0xAD # 
-    to-mdc # store partially_translatedRB to MEM[0xAD], MEM[0xAD] = MEM[0xA:RA]
+    to-mdc # store partially_translatedRA to MEM[0xAD], MEM[0xAD] = MEM[0xA:RA]
 
     rcrd 0xAB
     from-mdc # ACC = REG[RB]
@@ -430,11 +509,11 @@ check_if_self_collision:
     to-rb
 
     # summary:
-    # 0xAA = RA
-    # 0xAB = RB
-    # 0xAC = translatedRB
-    # 0xAD = translatedRA
-    # Currently here, we use translatedRA and translatedRB
+    # 0xAA = RA (new_head_row)
+    # 0xAB = RB (new_head_col)
+    # 0xAC = translatedRB (translated new_head_col)
+    # 0xAD = translatedRA (translated new_head_row)
+    # currently here, we use translatedRA and translatedRB
 
     # 3. check if translatedRA and translatedRB is on
     acc 0x1
@@ -466,26 +545,32 @@ check_if_food_or_body:
     from-mdc # ACC = MEM[0xAB] = RB
     to-rb # REG[RB] = ACC
 
-    b check_same_food_row
+    b check_same_food_row_col
 
-check_same_food_row:
-    # if RA == food_row
-    # 1. load the food_row from MEM[0x85]
-    rcrd 0x85
-    from-mdc # ACC = MEM[0x85] = food_row
-    to-mba # MEM[RB:RA] = ACC = food_row (note this is safe since we've allocated memory for 0x00 to 0x77, also temporary lang)
-    from-ra # ACC = new_head_row
-    sub-mba # ACC = new_head_row - food_row
+check_same_food_row_col:
+    # store RA temporarily in MEM[0xAA]
+    from-ra # ACC = REG[RA]
+    rcrd 0xAA
+    to-mdc # MEM[0xAA] = REG[RA]
+
+    # store RB temporarily in MEM[0xAB]
+    from-rb # ACC = REG[RB]
+    rcrd 0xAB
+    to-mdc # MEM[0xAB] = REG[RB]
+
+    # compare RA and food_row
+    rcrd 0xAA
+    from-mdc # ACC = REG[RA]
+    rarb 0x85
+    xor-ba # ACC = ACC ^ MEM[0x85] = REG[RA] ^ food_row
     bnez collision # if new_head_row != food_row, then there's a collision since it must be the body
 
     # else, another check pa
-    # if RB == food_col
-    # 2. load the food_col from MEM[0x86]
-    rcrd 0x86 
-    from-mdc # ACC = MEM[0x86] = food_col
-    to-mba # MEM[RB:RA] = ACC = food_col
-    from-rb # ACC = new_head_col
-    sub-mba # ACC = new_head_col - food_col
+    # compare RB and food_col
+    rcrd 0xAB
+    from-mdc # ACC = REG[RB]
+    rarb 0x86
+    xor-ba # ACC = ACC ^ MEM[0x86] = REG[RB] ^ food_col
     bnez collision # if new_head_col != food_col, then there's a collision since it must be the body
    
     # at this point, it's just the food! go to check_if_food to know whether the snake would grow or retain
@@ -500,36 +585,386 @@ check_if_food:
     # else:
     #     b retain_snake_length
 
-    # 1. load the food_row from MEM[0x85]
-    rcrd 0x85
-    from-mdc # ACC = MEM[0x85] = food_row
-    to-mba # MEM[RB:RA] = ACC = food_row (note this is safe since we've allocated memory for 0x00 to 0x77, also temporary lang)
-    from-ra # ACC = new_head_row
-    sub-mba # ACC = new_head_row - food_row
+    # store RA temporarily in MEM[0xAA]
+    from-ra # ACC = REG[RA]
+    rcrd 0xAA
+    to-mdc # MEM[0xAA] = REG[RA]
+
+    # store RB temporarily in MEM[0xAB]
+    from-rb # ACC = REG[RB]
+    rcrd 0xAB
+    to-mdc # MEM[0xAB] = REG[RB]
+
+    # compare RA and food_row
+    rcrd 0xAA
+    from-mdc # ACC = REG[RA]
+    rarb 0x85
+    xor-ba # ACC = ACC ^ MEM[0x85] = REG[RA] ^ food_row
     bnez retain_snake_length # if new_head_row != food_row, then no food collision
 
     # else, another check pa
-    # 2. load the food_col from MEM[0x86]
-    rcrd 0x86 
-    from-mdc # ACC = MEM[0x86] = food_col
-    to-mba # MEM[RB:RA] = ACC = food_col
-    from-rb # ACC = new_head_col
-    sub-mba # ACC = new_head_col - food_col
-    bnez retain_snake_length # if new_head_col != food_col, then no food collision
+    # compare RB and food_col
+    rcrd 0xAB
+    from-mdc # ACC = REG[RB]
+    rarb 0x86
+    xor-ba # ACC = ACC ^ MEM[0x86] = REG[RB] ^ food_col
+    bnez retain_snake_length # if new_head_row != food_row, then no food collision
 
-    # else, at this point, (food_row, food_col) == (RA, RB)
+    # else, at this point, (food_row, food_col) == (RA, RB), so kumain!
     b grow_the_snake
 
 grow_the_snake:
-    # TODO: grow by just turning on the new_head index in the LED matrix
+    # grow by just turning on the new_head_index in the LED matrix
+    # update the head_ptr too, and row and col arrays
 
+    # PSEUDOCODE
+    # MEM[translatedRB:translatedRA] = 0x1
+    # MEM[0x88], MEM[0x89]++ # update score, careful with carry bit
+    # enqueue head
+
+    # IMPLEMENTATION
+    # takeout translated RA from 0xAD
+    rcrd 0xAD
+    from-mdc # ACC = MEM[0xAD] = translatedRA
+    to-ra # REG[RA] = translatedRA
+
+    # takeout translated RB from 0xAC
+    rcrd 0xAC
+    from-mdc # ACC = MEM[0xAC] = translatedRB
+    to-rb # REG[RB] = translatedRB
+
+    # turn on new_head in LED matrix
+    acc 0x1
+    to-mba # MEM[translatedRB:translatedRA] = 0x1
+
+update_score:
+    # update score at MEM[0x88] and MEM[0x89], just add 1
+    acc 0x1
+    rarb 0x89
+    add-mba # ACC = ACC + MEM[0x89] = 0x1 + MEM[0x89]
+    to-mba # MEM[0x89] = ACC
+    
+    # transfer carry bit to more significant nibble
+    acc 0x0
+    rarb 0x88
+    addc-mba # ACC = ACC + MEM[0x88] + CF = 0x0 + MEM[0x88] + CF
+    to-mba # MEM[0x89] = ACC
+
+
+    # update head_index at MEM[0x81] and MEM[0x82]
+    # turn back RA from 0xAA
+    rcrd 0xAA
+    from-mdc # ACC = MEM[0xAA] = RA
+    rcrd 0x81 
+    to-mdc # MEM[0x81] = ACC = RA
+
+    # turn back RB from 0xAB
+    rcrd 0xAB
+    from-mdc # ACC = MEM[0xAB] = RB
+    rcrd 0x82
+    to-mdc # MEM[0x82] = ACC = RB
+
+enqueue_head:
+    # enqueue this head at the queue
+    # PSEUDOCODE
+    # 1. head_ptr++
+    # 2. put (RA, RB) in body[head_ptr] for both row and col
+
+    # 1. head_ptr++
+    # we can do this by adding one to head_ptr_low (MEM[0xB4]) then add the CF to head_ptr_high (MEM[0xB3])
+    acc 0x1
+    rarb 0xB4
+    add-mba # ACC = ACC + MEM[0xB4] = 0x1 + head_ptr_row
+    to-mba # MEM[0xB4] = ACC
+
+    # transfer carry bit to more significant nibble
+    acc 0x0
+    rarb 0xB3
+    addc-mba # ACC = ACC + MEM[0xB3] + CF = 0x0 + MEM[0xB3] + CF
+    to-mba = # MEM[0xB3] = ACC
+
+    # note that head_ptr here can reach 0x40, so if it reaches 0x40, let's make head_ptr 0x00 again (circular queue)
+
+    # PSEUDOCODE
+    # if MEM[0xB3] == 4:
+    #     if MEM[0xB4] == 0:
+    #         MEM[0xB3] = MEM[0xB4] = 0x0
+    #     else:
+    #         # set_mem_head_ptr
+    # else:
+    #     # set_mem_head_ptr
+
+    acc 0x4
+    rarb 0xB3
+    xor-ba # ACC = 0x4 ^ MEM[0xB3]
+    bnez set_mem_head_ptr # if not equal
+
+    # else, another check
+    acc 0x0
+    rarb 0xB4
+    xor-ba # ACC = 0x0 ^ MEM[0xB4]
+    bnez set_mem_head_ptr # if not equal, but this is impossible
+
+    # else, sumobra head_ptr natin, we need it to be circular
+    # set MEM[0xB3] = MEM[0xB4] = 0x0
+    acc 0x0
+    rarb 0xB3
+    to-mba
+    rarb 0xB4
+    to-mba
+
+set_mem_head_ptr:
+    # 2. put (RA, RB) in body[head_ptr] for both row and col
+    # now the values of head_ptr here would just range from 0x00..0x3F
+
+    # PSEUDOCODE
+    # set row[head_ptr_high:head_ptr_low] = RA (new_head_row)
+    # set col[translated(head_ptr_high:head_ptr_low)] = RB (new_head_col), just add 0x40 to (head_ptr_high, head_ptr_low)
+
+    # set RB = head_ptr_high
+    rcrd 0xB3
+    from-mdc # ACC = MEM[0xB3]
+    to-rb # REG[RB] = head_ptr_high
+    
+    # set RA = head_ptr_low
+    rcrd 0xB4
+    from-mdc # ACC = MEM[0xB4]
+    to-ra # REG[RA] = head_ptr_low
+
+    # set row[head_ptr_high:head_ptr_low] = RA
+    rcrd 0xAA # load new_head_row
+    from-mdc # ACC = MEM[0xAA] = new_head_row
+    to-mba # MEM[head_ptr_high:head_ptr_low] = ACC = new_head_row
+
+    # set col[translated(head_ptr_high:head_ptr_low)] = RB
+    # 1. add 0x4 to head_ptr_high
+    acc 0x4
+    rarb 0xB3
+    add-mba # ACC = 0x4 + MEM[0xB3] = 0x4 + head_ptr_high = translated(head_ptr_high)
+    to-rb # REG[RB] = ACC = translated(head_ptr_high)
+
+    # 2. add 0x0 to head_ptr_low, but that's just unnecessary
+    # we'll just direct to loading it to RA
+    rcrd 0xB4
+    from-mdc # ACC = MEM[0xB4] = head_ptr_low
+    to-ra # REG[RA] = ACC = translated(head_ptr_low) = head_ptr_low
+    
+    # 3. finally, we can col[translated(head_ptr_high:head_ptr_low)] = RB
+    rcrd 0xAB
+    from-mdc # ACC = MEM[0xAB] = new_head_col
+    to-mba # MEM[translated(head_ptr_high:head_ptr_low)] = ACC = new_head_col
+    
     b after_move
 
 retain_snake_length:
-    # TODO: just move 
+    # just move 
+    # update queue here
     # illusion lang siya, pero in reality, it's just turning off tail index and turning on head index in the LED matrix
+
+    # PSEUDOCODE
+    # 1. translated(tail_row, tail_col) = 0x0
+    # 2. translated(new_head_row, new_head_col) = 0x1
+    # 3. update head index
+    # 4. point tail_ptr to the next tail (make sure circular queue)
+    #  - deque old tail by setting both to 0x0
+    #  - update tail index
+    # 5. enqueue head (make sure circular queue)
+
+    # IMPLEMENTATION
+    # 1. translated(tail_row, tail_col) = 0x0, let's set RA = tail_row, RB = tail_col 
+    # translatedRB = MEM[0x90 + RA] = MEM[0x9:RA]
+    # translatedRA = MEM[0xA0 + RA] + RB = MEM[0xA:RA] + RB
+    # 1.1 translate tail_col into LED matrix index
+    acc 0x9
+    to-rb # REG[RB] = 0x9
+
+    rcrd 0x83
+    from-mdc # ACC = MEM[0x83] = tail_row
+    to-ra # REG[RA] = tail_row
+
+    from-mba # ACC = MEM[0x9:tail_row]
+    rcrd 0xAE
+    to-mdc # store translated_tail_col temporarily in MEM[0xAE]
+
+    # 1.2 translate tail_row into LED matrix index
+    acc 0xA
+    to-rb # REG[RB] = 0xA
+
+    rcrd 0x83
+    from-mdc # ACC = MEM[0x83] = tail_row
+    to-ra # REG[RA] = tail_row
+
+    from-mba # ACC = MEM[0xA:tail_row]
+    rcrd 0xAF 
+    to-mdc # store partially_translated_tail_row to MEM[0xAF]
+
+    rcrd 0x84
+    from-mdc # ACC = tail_col
+
+    rarb 0xAF
+    add-mba # ACC = ACC + MEM[0xAF] = tail_col + MEM[0xA:tail_row]
+    to-ra # REG[translated_tail_row] = ACC = tail_col + MEM[0xA:tail_row]
+    to-mba # MEM[0xAF] = tail_col + MEM[0xA:tail_row], just in case
+
+    # fetch translated_tail_row again
+    rcrd 0xAE
+    from-mdc
+    to-rb 
+
+    # at this point, RB = translated_tail_row, RA = translated_tail_col, so we can safely MEM[translated_tail_row:translated_tail_col] = 0x0, and turn off the old tail in the LED!
+    acc 0x0
+    to-mba # MEM[RB:RA] = 0x0
+
+
+    # 2. translated(new_head_row, new_head_col)
+    # this is easy since we already calculated this earlier
+    # 2.1 fetch from MEM[0xAC] = translatedRB
+    rcrd 0xAC
+    from-mdc # ACC = translatedRB
+    to-rb # REG[RB] = translatedRB
+
+    # 2.2 fetch from MEM[0xAD] = translatedRA
+    rcrd 0xAD
+    from-mdc # ACC = translatedRA
+    to-ra # REG[RA] = translatedRA
+
+    # 2.3 then we can safely dom MEM[RB:RA] = 0x1, and turn on the new head in the LED!
+    acc 0x1
+    to-mba # MEM[RB:RA] = 0x1
+
+
+    # 3. update head index
+    # 3.1 fetch from MEM[0xAA] the new_head_row
+    rcrd 0xAA
+    from-mdc # ACC = MEM[0xAA] = new_head_row
+    # 3.2 put new_head_row to MEM[0x81]
+    rcrd 0x81
+    to-mdc # MEM[0x81] = ACC = new_head_row
+    # 3.3 fetch from MEM[0xAB] the new_head_col
+    rcrd 0xAB
+    from-mdc # ACC = MEM[0xAB] = new_head_col
+    # 3.4 put new_head_col to MEM[0x82]
+    rcrd 0x82
+    to-mdc # MEM[0x82] = ACC = new_head_col
+
+deque_tail:
+    # 4. point tail_ptr to the next tail (make sure circular queue)
+    # 4.1 make old tail be (0, 0) in row, col arrays
+    # 4.1.1 set row[tail_ptr_high:tail_ptr_low] = 0x0
+    # set RB = tail_ptr_high
+    rcrd 0xB5
+    from-mdc # ACC = MEM[0xB5]
+    to-rb # REG[RB] = tail_ptr_high
+
+    # set RA = tail_ptr_low
+    rcrd 0xB6
+    from-mdc # ACC = MEM[0xB6]
+    to-ra # REG[RA] = tail_ptr_low
+
+    # set row[tail_ptr_high:tail_ptr_low] = 0x0
+    acc 0x0
+    to-mba # MEM[tail_ptr_high:tail_ptr_low] = ACC = 0x0
+
+    # 4.1.2 set col[translated(tail_ptr_high:tail_ptr_low)] = 0x0
+    # add 0x4 to tail_ptr_high
+    acc 0x4
+    rarb 0xB5
+    add-mba # ACC = 0x4 + MEM[0xB5] = 0x4 + tail_ptr_high = translated(tail_ptr_high)
+    to-rb # REG[RB] = ACC = translated(tail_ptr_high)
+
+    # add 0x0 to tail_ptr_low, but that's just unnecessary
+    # we'll just direct to loading it to RA
+    rcrd 0xB6
+    from-mdc # ACC = MEM[0xB6] = tail_ptr_low
+    to-ra # REG[RA] = ACC = translated(tail_ptr_low) = tail_ptr_low
+
+    # finally, we can col[translated(tail_ptr_high:tail_ptr_low)] = 0x0
+    acc 0x0
+    to-mba # MEM[translated(tail_ptr_high:tail_ptr_low)] = 0x0
     
-    b after_move
+
+    # 4.2 tail_ptr++ (make sure circular queue)
+    # 4.2.1 add 1 to tail_ptr_low (MEM[0xB6]) first then add CF to head_ptr_high (MEM[0xB5])
+    acc 0x1
+    rarb 0xB6
+    add-mba # ACC = ACC + MEM[0xB6] = 0x1 + head_ptr_low
+    to-mba # MEM[0xB6] = ACC
+    # 4.2.2 transfer carry bit to more significant nibble
+    acc 0x0
+    rarb 0xB5
+    addc-mba # ACC = ACC + MEM[0xB5] + CF = 0x0 + MEM[0xB5] + CF
+    to-mba # MEM[0xB5] = ACC
+    # 4.2.3 check if magooverflow sa queue yung tail_ptr bounds
+    
+    # PSEUDOCODE
+    # if MEM[0xB5] == 4:
+    #     if MEM[0xB6] == 0:
+    #         MEM[0xB5] = MEM[0xB6] = 0x0
+    #     else:
+    #         # set_mem_tail_ptr
+    # else:
+    #     # set_mem_tail_ptr
+
+    acc 0x4
+    rarb 0xB5
+    xor-ba # ACC = 0x4 ^ MEM[0xB5]
+    bnez set_mem_tail_ptr # if not equal
+
+    # else, another check
+    acc 0x0
+    rarb 0xB6
+    xor-ba # ACC = 0x0 ^ MEM[0xB6]
+    bnez set_mem_tail_ptr # if not equal, but this is impossible
+
+    # else, sumobra head_ptr natin, we need it to be circular
+    # set MEM[0xB5] = MEM[0xB6] = 0x0
+    acc 0x0
+    rarb 0xB5
+    to-mba
+    rarb 0xB6
+    to-mba
+
+set_mem_tail_ptr:
+    # 4.3 fetch MEM[tail_ptr_high:tail_ptr_low] = (row, col) then put it to new_tail_index, this is basically the next tail
+    # 4.3.1 set RB = tail_ptr_high
+    rcrd 0xB5
+    from-mdc # ACC = MEM[0xB5]
+    to-rb
+
+    # 4.3.2 set RA = tail_ptr_low
+    rcrd 0xB6
+    from-mdc # ACC = MEM[0xB6]
+    to-ra # REG[RA] = tail_ptr_low
+
+    # 4.3.3 set tail_row to next_tail_row
+    from-mba # ACC = MEM[tail_ptr_high:tail_ptr_low]
+    rcrd 0x83
+    to-mdc # MEM[0x83] = ACC = MEM[tail_ptr_high:tail_ptr_low]
+
+    # 4.3.4 set tail_col to next_tail_col
+    # translate tail_ptr_high and tail_ptr_low
+    # add 0x4 to tail_ptr_high
+    acc 0x4
+    rarb 0xB5
+    add-mba # ACC = 0x4 + MEM[0xB5] = 0x4 + tail_ptr_high = translated(tail_ptr_high)
+    to-rb # REG[RB] = ACC = translated(tail_ptr_high)
+
+    # add 0x0 to tail_ptr_low, but that's just unnecessary
+    # we'll just direct to loading it to RA
+    rcrd 0xB6
+    from-mdc # ACC = MEM[0xB6] = tail_ptr_low
+    to-ra # REG[RA] = ACC = translated(tail_ptr_low) = tail_ptr_low
+
+    from-mba # ACC = MEM[translated(tail_ptr_high:tail_ptr_low)]
+    rcrd 0x84
+    to-mdc # MEM[0x84] = ACC = MEM[translated(tail_ptr_high:tail_ptr_low)]
+
+
+    # 5. enqueue head, or just copy paste ung code sa `set_mem_head_ptr`
+    # 5.1 head_ptr++
+    # 5.2 set row[head_ptr_high:head_ptr_low] = RA
+    # 5.3 set col[translated(head_ptr_high:head_ptr_low)] = RB
+    b enqueue_head # above is just duplicated of this 
 # /========== move_snake ==========/
 
 
@@ -540,5 +975,5 @@ collision:
 
 game_over:
     # OPTIONAL? some indication to know it's game over
-    b start
+    shutdown
 # /========== game over ==========/
