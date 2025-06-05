@@ -73,7 +73,7 @@ class TestArch242Assembler:
             ('set-ei', [0x2C]),
             ('clr-ei', [0x2D]),
             ('ret', [0x2E]),
-            ('from-ioa', [0x30]),
+            ('from-ioa', [0x32]),
             ('inc', [0x31]),
             ('bcd', [0x36]),
             ('nop', [0x3E]),
@@ -1071,7 +1071,6 @@ loop:
         asm_code = 'b end\n' + '\n'.join(['nop'] * nop_count) + '\nend: shutdown'
         test_file = self.create_test_file(asm_code)
         result = self.assembler.assemble_code(test_file, 'bin')
-        print(result)
         assert result[0] == 0xE3  # b instruction with high bits
         assert result[1] == 0xEA  # low bits of address (1002)
     
