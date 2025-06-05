@@ -31,7 +31,7 @@ class Arch242Assembler:
             'set-ei': 0x2C,
             'clr-ei': 0x2D,
             'ret': 0x2E,
-            'from-ioa': 0x30,
+            'from-ioa': 0x32,
             'inc': 0x31,
             'bcd': 0x36,
             'nop': 0x3E,
