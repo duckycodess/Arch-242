@@ -92,7 +92,7 @@ class arch242emu:
             self.g_inst(val)
         
         elif val <= 47: # (46-47): ret, retc (deprecated)
-            self.ret(val)
+            self.ret()
                 
         elif val <= 53: # (48-53): from-ioa, inc, to-ioa (deprecated), to-iob (deprecated), to-ioc (deprecated), undefined_inst#38 (deprecated)
             self.h_inst(val)
@@ -185,8 +185,8 @@ class arch242emu:
 
         elif inst == 10: # subc-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA] + self.CF
-            self.CF = (calc >> 4 & 1) #paano ba undeflow bit?
-            self.ACC = calc #might not work?
+            self.CF = 1 if calc < 0 else 0 #paano ba undeflow bit?
+            self.ACC = calc & 0xF #might not work?
 
         elif inst == 11: # sub-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA]
@@ -200,35 +200,35 @@ class arch242emu:
             self.MEM[(self.RB << 4) + self.RA] = (self.MEM[(self.RB << 4) + self.RA] + 1) & 0xF
 
         elif inst == 13: # dec*mba
-            self.MEM[(self.RB << 4) + self.RA] = (self.MEM[(self.RB << 4) + self.RA] - 1) #TODO: underflow
+            self.MEM[(self.RB << 4) + self.RA] = (self.MEM[(self.RB << 4) + self.RA] - 1) & 0xF
 
         elif inst == 14: # inc*mdc
             self.MEM[(self.RD << 4) + self.RC] = (self.MEM[(self.RD << 4) + self.RC] + 1) & 0xF
 
         elif inst == 15: # dec*mdc
-            self.MEM[(self.RD << 4) + self.RC] = (self.MEM[(self.RD << 4) + self.RC] - 1) #TODO: underflow
+            self.MEM[(self.RD << 4) + self.RC] = (self.MEM[(self.RD << 4) + self.RC] - 1) & 0xF
 
         elif inst <= 25: 
             if inst == 16: # inc*-RA
                 self.RA = (self.RA + 1) & 0xF
             elif inst == 17: # dec*-RA
-                self.RA = (self.RA - 1) #TODO: underflow
+                self.RA = (self.RA - 1) & 0xF #TODO: underflow
             elif inst == 18: # inc*-RB
                 self.RB = (self.RB + 1) & 0xF
             elif inst == 19: # dec*-RB
-                self.RB = (self.RB - 1) #TODO: underflow
+                self.RB = (self.RB - 1) & 0xF #TODO: underflow
             elif inst == 20: # inc*-RC
                 self.RC = (self.RC + 1) & 0xF
             elif inst == 21: # dec*-RC
-                self.RC = (self.RC - 1) #TODO: underflow
+                self.RC = (self.RC - 1) & 0xF #TODO: underflow
             elif inst == 22: # inc*-RD
                 self.RD = (self.RD + 1) & 0xF
             elif inst == 23: # dec*-RD
-                self.RD = (self.RD - 1) #TODO: underflow
+                self.RD = (self.RD - 1) & 0xF #TODO: underflow
             elif inst == 24: # inc*-RE
                 self.RE = (self.RE + 1) & 0xF
             elif inst == 25: # inc*-RE
-                self.RE = (self.RE - 1) #TODO: underflow
+                self.RE = (self.RE - 1) & 0xF #TODO: underflow
 
         self.PC += 1
 
@@ -249,26 +249,28 @@ class arch242emu:
         self.PC += 1
 
     def f_inst(self, inst):
+        # changing, initially self.mem[self.RA] = self.ACC siya
+        # it's supposed to be self.RA = self.ACC and follow the patter to others
         if inst == 32: # to-RA
-            self.MEM[self.RA] = self.ACC
+            self.RA = self.ACC
         elif inst == 33: # from-RA
-            self.ACC = self.MEM[self.RA]
+            self.ACC = self.RA
         elif inst == 34: # to-RB
-            self.MEM[self.RB] = self.ACC
+            self.RB = self.ACC
         elif inst == 35: # from-RB
-            self.ACC = self.MEM[self.RB]
+            self.ACC = self.RB
         elif inst == 36: # to-RC
-            self.MEM[self.RC] = self.ACC
+            self.RC = self.ACC
         elif inst == 37: # from-RC
-            self.ACC = self.MEM[self.RC]
+            self.ACC = self.RC
         elif inst == 38: # to-RD
-            self.MEM[self.RD] = self.ACC
+            self.RD = self.ACC
         elif inst == 39: # from-RD
-            self.ACC = self.MEM[self.RD]
+            self.ACC = self.RD
         elif inst == 40: # to-RE
-            self.MEM[self.RE] = self.ACC
+            self.RE = self.ACC
         elif inst == 41: # from-RE
-            self.ACC = self.MEM[self.RE]
+            self.ACC = self.RE
 
         self.PC += 1
 
@@ -288,11 +290,12 @@ class arch242emu:
         ...
 
     def h_inst(self, inst):
-        if inst == 48: # from-ioa
+        # from-ioa is supposed to be 50 na (nakaligtaan ko rin)
+        if inst == 50: # from-ioa
             self.ACC = self.IOA
         elif inst == 49: # inc
             self.ACC = (self.ACC + 1) & 0xF
-        elif inst == 50: # -
+        elif inst == 48: # -
             self.nop(1)
         elif inst == 51: # -
             self.nop(1)
@@ -429,6 +432,7 @@ class arch242emu:
             self.PC = decode_next_address(0xF000)
 
         elif 240 <= inst <= 255: # call
+            self.TEMP = self.PC + 2
             self.PC = decode_next_address(0xF000)
 
         self.CYCLESKIP = True
@@ -508,5 +512,21 @@ class arch242emu:
                     pyxel.blt((c+colval)*32,rowval*32,0,0,0,32,32,0)
             colval += 4
 
-arch242emu('test.bin')
+            # just commenting here just in case i'm wrong, suggestion lang tho
+            # can make your own, rough idea implementation lang to that i didn't really test
+            '''
+            for i in self.MEM[192:242]:
+            if colval == 20: 
+                rowval += 1
+                colval = 0
+
+            lower_nibble = i & 0xF  # should only use lower 4 bits kasi nibble
+            for bit_pos in range(4):  # we cehck each bit position
+                if (lower_nibble >> bit_pos) & 1:  # check if bit is set
+                    pyxel.blt((bit_pos+colval)*32,rowval*32,0,32,0,32,32,0)
+                else:
+                    pyxel.blt((bit_pos+colval)*32,rowval*32,0,0,0,32,32,0)
+            colval += 4
+            '''
+
 
