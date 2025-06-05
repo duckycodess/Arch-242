@@ -1142,7 +1142,7 @@ loop:
                     nop
                 """
         expected = [
-            0x30,
+            0x32,
             0x75,
             0x3E
         ]
