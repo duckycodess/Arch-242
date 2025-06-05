@@ -214,7 +214,7 @@ class arch242emu:
         elif inst == 11: # sub-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA]
             self.CF = (calc >> 4 & 1) #paano ba undeflow bit?
-            self.ACC = calc #might not work?
+            self.ACC = calc & 0xF #might not work?
 
         self.PC += 1
 
@@ -312,8 +312,6 @@ class arch242emu:
     def ret(self):
         self.PC = ((self.PC >> 12) << 12) + (self.TEMP & 0xFFF)
         self.TEMP = 0
-
-        PC += 1
 
     def h_inst(self, inst):
         if inst == 48: # -
