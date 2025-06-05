@@ -246,6 +246,12 @@ initialize_states:
     rarb 0xDE
     to-mba
 
+    
+    # 7. read from IOA
+    from-ioa # ACC = IOA
+    rcrd 0xB0 
+    to-mdc # MEM[0xB0] = ACC
+
     b game_loop
 # /========== start ==========/ 
 
