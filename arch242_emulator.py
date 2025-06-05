@@ -352,7 +352,7 @@ class arch242emu:
             self.PC += 2
 
     def dec(self): # dec
-        self.ACC = self.ACC - 1 #todo: underflow
+        self.ACC = (self.ACC - 1) & 0xF #todo: underflow
         self.PC += 1
 
     def i_inst(self, inst):
