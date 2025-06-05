@@ -182,13 +182,13 @@ class arch242emu:
 
     def b_inst(self, inst):
         if inst == 4: # from-mda
-            self.ACC = self.MEM[(self.RB << 4) + self.RA]
+            self.ACC = (self.MEM[(self.RB << 4) + self.RA]) & 0xF
 
         elif inst == 5: # to-mda
             self.MEM[(self.RB << 4) + self.RA] = self.ACC
 
         elif inst == 6: # from-mdc
-            self.ACC = self.MEM[(self.RD << 4) + self.RC]
+            self.ACC = (self.MEM[(self.RD << 4) + self.RC]) & 0xF
 
         elif inst == 7: # to-mdc
             self.MEM[(self.RD << 4) + self.RC] = self.ACC
@@ -257,11 +257,11 @@ class arch242emu:
 
     def e_inst(self, inst):
         if inst == 26: # and-ba
-            self.ACC = self.ACC & self.MEM[(self.RB << 4) + self.RA]
+            self.ACC = (self.ACC & self.MEM[(self.RB << 4) + self.RA]) & 0xF
         elif inst == 27: # xor-ba
-            self.ACC = self.ACC ^ self.MEM[(self.RB << 4) + self.RA]
+            self.ACC = (self.ACC ^ self.MEM[(self.RB << 4) + self.RA]) & 0xF
         elif inst == 28: # or-ba
-            self.ACC = self.ACC | self.MEM[(self.RB << 4) + self.RA]
+            self.ACC = (self.ACC | self.MEM[(self.RB << 4) + self.RA]) & 0xF
         elif inst == 29: # and*-mba
             self.MEM[(self.RB << 4) + self.RA] = self.ACC & self.MEM[(self.RB << 4) + self.RA]
         elif inst == 30: # xor*-mba
