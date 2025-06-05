@@ -1,16 +1,25 @@
 import pyxel
-#TODO:
-# input file to asm -> assemble to bin during runtime
-# unit testing
+from assembler.module import Arch242Assembler
+import sys
+
+def init(): #consider placing this as a separate file?
+    if len(sys.argv) != 2:
+        print("Usage: python arch242_emulator.py <input_file.asm | input_file.bin>", file=sys.stderr)
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+
+    arch242emu(input_file)
 
 class arch242emu:
 
     # ---/ INITIALIZE PYXEL AND EMULATOR ELEMENTS /---
 
-    def __init__(self, binfile):
+    def __init__(self, file):
         pyxel.init(640,320,title="Arch-242 LED Matrix", fps=30) #fps -> clock speed of emulator
         pyxel.load('assets/assets.pyxres')
 
+        print("Initializing Emulator...")
         self.RA = 0b0000
         self.RB = 0b0000
         self.RC = 0b0000
@@ -27,9 +36,8 @@ class arch242emu:
         self.CLOCK = 0
         self.CYCLESKIP = False #assuming 1 clock tick == 1 cycle for this implementation to work
         self.SHUTDOWN = False
-        self.PC = 0 #use this to iterate through ASM_MEM
+        self.PC = 0
 
-        self.HALT = False
         self.LED = [
             [0,0,0,0], #0
             [1,0,0,0], #1
@@ -51,21 +59,37 @@ class arch242emu:
 
         self.LED_DEBUG = 0
         self.LED_EXP = 0
-        #retrieve the asm file and store it into ASM_MEM
-        #TODO: fix this in such a way that we have to input an asm file
+
+        # ---/ ASSEMBLE & LOAD PROGRAM /---
+
+        if file[-3:] == 'asm':
+            print('Loaded assembly file!')
+            asmfile = file
+            
+            print('Initializing assembler...')
+            assembler = Arch242Assembler()
+
+            print('Assembler loaded! Assembling program...')
+            output_data = assembler.assemble_code(asmfile, 'bin')
+            assembler.write_output(output_data, asmfile, 'bin')
+
+            binfile = f'{asmfile[:-4]}.bin'
+        else:
+            print('Loaded bin file!')
+            binfile = file
+
+        print('Loading program...')
         with open(binfile, 'rb') as bin:
             data = bin.read()
             self.ASM_MEM = [hex(byte) for byte in data]
             
         self.MEM = [0b0]*256
 
+        print('Starting Emulator...')
         pyxel.run(self.update, self.draw)
 
     # ---/ EMULATOR: INSTRUCTION MATCHING /---
 
-    #read instruction from ASM_MEM
-    #check case is in order of instructions listed in the project specification page
-    #NOTE: remove print statements when everything is done(or leave them in as debug messages?)
     def read_inst(self, pc, inst):
         val = int(inst[pc], base=16)
 
@@ -364,12 +388,11 @@ class arch242emu:
         if 80 <= inst <= 95: # rarb
             self.RA = (inst - 80) & 0xF
             self.RB = next_instruction & 0xF
-            self.CYCLESKIP = True
         elif 96 <= inst <= 111: # rcrd
             self.RC = (inst - 96) & 0xF
             self.RD = next_instruction & 0xF
-            self.CYCLESKIP = True
-            
+        
+        self.CYCLESKIP = True    
         self.PC += 2
         
     def acc(self, inst): # acc
@@ -459,18 +482,18 @@ class arch242emu:
 
     def update(self):
         #emulator runs here
-        if self.PC < len(self.ASM_MEM):
-            self.CLOCK += 1
 
-            if not self.CYCLESKIP:
-                if self.SHUTDOWN:
-                    quit()
-                
+        self.CLOCK += 1
+
+        if not self.CYCLESKIP:
+            if self.PC < len(self.ASM_MEM):
                 self.read_inst(self.PC, self.ASM_MEM)
 
-            else:
-                self.CLOCK += 1
-                self.CYCLESKIP = False
+            if self.SHUTDOWN:
+                quit()
+        else:
+            self.CLOCK += 1
+            self.CYCLESKIP = False
 
         #IO check
         self.IOA &= 0b0000
@@ -484,9 +507,8 @@ class arch242emu:
         if pyxel.btn(pyxel.KEY_RIGHT):
             self.IOA |= 8
 
-        print(f'Current value of IOA: {bin(self.IOA)}') # IO DEBUG
-
-        self.LED_CHECK() #LED DEBUG
+        #print(f'Current value of IOA: {bin(self.IOA)}') # IO DEBUG
+        #self.LED_CHECK() #LED DEBUG
         
     # ---/ LED MATRIX DRAW CODE /---
 
@@ -525,4 +547,5 @@ class arch242emu:
             colval += 4
             '''
 
-
+if __name__ == "__main__":
+    init()
