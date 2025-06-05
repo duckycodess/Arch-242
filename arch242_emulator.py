@@ -16,7 +16,7 @@ class arch242emu:
     # ---/ INITIALIZE PYXEL AND EMULATOR ELEMENTS /---
 
     def __init__(self, file):
-        pyxel.init(640,320,title="Arch-242 LED Matrix", fps=30) #fps -> clock speed of emulator
+        pyxel.init(720,320,title="Arch-242 LED Matrix", fps=1000) #fps -> clock speed of emulator
         pyxel.load('assets/assets.pyxres')
 
         print("Initializing Emulator...")
@@ -59,6 +59,9 @@ class arch242emu:
 
         self.LED_DEBUG = 0
         self.LED_EXP = 0
+        self.DEBUG = False
+        self.CURINST = ''
+        self.TITLE = file[:-4]
 
         # ---/ ASSEMBLE & LOAD PROGRAM /---
 
@@ -163,35 +166,43 @@ class arch242emu:
         if inst == 0: # rot-r
             swapbit = (self.ACC & 1)*8
             self.ACC = (self.ACC >> 1) + swapbit
+            self.CURINST = 'rot-r'
 
         elif inst == 1: # rot-l
             swapbit = ((self.ACC >> 3) & 1)
             self.ACC = ((self.ACC << 1) & 0xF) + swapbit
+            self.CURINST = 'rot-l'
 
         elif inst == 2: # rot-rc
             swapbit = self.CF*8
             self.CF = (self.ACC & 1)
             self.ACC = (self.ACC >> 1) + swapbit
+            self.CURINST = 'rot-rc'
 
         elif inst == 3: # rot-lc
             swapbit = self.CF
             self.CF = ((self.ACC >> 3) & 1)
             self.ACC = ((self.ACC << 1) & 0xF) + swapbit
+            self.CURINST = 'rot-lc'
 
         self.PC += 1
 
     def b_inst(self, inst):
-        if inst == 4: # from-mda
+        if inst == 4: # from-mba
             self.ACC = (self.MEM[(self.RB << 4) + self.RA]) & 0xF
+            self.CURINST = 'from-mba'
 
-        elif inst == 5: # to-mda
+        elif inst == 5: # to-mba
             self.MEM[(self.RB << 4) + self.RA] = self.ACC
+            self.CURINST = 'to-mba'
 
         elif inst == 6: # from-mdc
             self.ACC = (self.MEM[(self.RD << 4) + self.RC]) & 0xF
+            self.CURINST = 'from-mdc'
 
         elif inst == 7: # to-mdc
             self.MEM[(self.RD << 4) + self.RC] = self.ACC
+            self.CURINST = 'to-mdc'
 
         self.PC += 1
 
@@ -200,74 +211,99 @@ class arch242emu:
             calc = self.ACC + self.MEM[(self.RB << 4) + self.RA] + self.CF
             self.CF = (calc >> 4 & 1)
             self.ACC = calc & 0xF
+            self.CURINST = 'addc-mba'
 
         elif inst == 9: # add-mba
             calc = self.ACC + self.MEM[(self.RB << 4) + self.RA]
             self.CF = (calc >> 4 & 1)
             self.ACC = calc & 0xF
+            self.CURINST = 'add-mba'
 
         elif inst == 10: # subc-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA] + self.CF
             self.CF = 1 if calc < 0 else 0 #paano ba undeflow bit?
             self.ACC = calc & 0xF #might not work?
+            self.CURINST = 'subc-mba'
+
 
         elif inst == 11: # sub-mba
             calc = self.ACC - self.MEM[(self.RB << 4) + self.RA]
             self.CF = (calc >> 4 & 1) #paano ba undeflow bit?
             self.ACC = calc & 0xF #might not work?
+            self.CURINST = 'sub-mba'
 
         self.PC += 1
 
     def d_inst(self, inst): #WARN: ASSUMING EACH MEMORY ADDRESS HOLDS 4 BITS. IF NOT, CHANGE 0XF
         if inst == 12: # inc*mba
             self.MEM[(self.RB << 4) + self.RA] = (self.MEM[(self.RB << 4) + self.RA] + 1) & 0xF
+            self.CURINST = 'inc*-mba'
 
         elif inst == 13: # dec*mba
             self.MEM[(self.RB << 4) + self.RA] = (self.MEM[(self.RB << 4) + self.RA] - 1) & 0xF
+            self.CURINST = 'dec*-mba'
 
         elif inst == 14: # inc*mdc
             self.MEM[(self.RD << 4) + self.RC] = (self.MEM[(self.RD << 4) + self.RC] + 1) & 0xF
+            self.CURINST = 'inc-mdc'
 
         elif inst == 15: # dec*mdc
             self.MEM[(self.RD << 4) + self.RC] = (self.MEM[(self.RD << 4) + self.RC] - 1) & 0xF
+            self.CURINST = 'dec*-mdc'
 
         elif inst <= 25: 
             if inst == 16: # inc*-RA
                 self.RA = (self.RA + 1) & 0xF
+                self.CURINST = 'inc*-ra'
             elif inst == 17: # dec*-RA
                 self.RA = (self.RA - 1) & 0xF
+                self.CURINST = 'dec*-ra'
             elif inst == 18: # inc*-RB
                 self.RB = (self.RB + 1) & 0xF
+                self.CURINST = 'inc*-rb'
             elif inst == 19: # dec*-RB
                 self.RB = (self.RB - 1) & 0xF
+                self.CURINST = 'dec*-rb'
             elif inst == 20: # inc*-RC
                 self.RC = (self.RC + 1) & 0xF
+                self.CURINST = 'inc*-rc'
             elif inst == 21: # dec*-RC
                 self.RC = (self.RC - 1) & 0xF
+                self.CURINST = 'dec*-rc'
             elif inst == 22: # inc*-RD
                 self.RD = (self.RD + 1) & 0xF
+                self.CURINST = 'inc*-rd'
             elif inst == 23: # dec*-RD
                 self.RD = (self.RD - 1) & 0xF
+                self.CURINST = 'dec*-rd'
             elif inst == 24: # inc*-RE
                 self.RE = (self.RE + 1) & 0xF
-            elif inst == 25: # inc*-RE
+                self.CURINST = 'inc*-re'
+            elif inst == 25: # dec*-RE
                 self.RE = (self.RE - 1) & 0xF
+                self.CURINST = 'dec*-re'
 
         self.PC += 1
 
     def e_inst(self, inst):
         if inst == 26: # and-ba
             self.ACC = (self.ACC & self.MEM[(self.RB << 4) + self.RA]) & 0xF
+            self.CURINST = 'and-ba'
         elif inst == 27: # xor-ba
             self.ACC = (self.ACC ^ self.MEM[(self.RB << 4) + self.RA]) & 0xF
+            self.CURINST = 'xor-ba'
         elif inst == 28: # or-ba
             self.ACC = (self.ACC | self.MEM[(self.RB << 4) + self.RA]) & 0xF
+            self.CURINST = 'or-ba'
         elif inst == 29: # and*-mba
             self.MEM[(self.RB << 4) + self.RA] = self.ACC & self.MEM[(self.RB << 4) + self.RA]
+            self.CURINST = 'and*-mba'
         elif inst == 30: # xor*-mba
             self.MEM[(self.RB << 4) + self.RA] = self.ACC ^ self.MEM[(self.RB << 4) + self.RA]
+            self.CURINST = 'xor*-mba'
         elif inst == 31: # or*-mba
             self.MEM[(self.RB << 4) + self.RA] = self.ACC | self.MEM[(self.RB << 4) + self.RA]
+            self.CURINST = 'or*-mba'
 
         self.PC += 1
 
@@ -276,50 +312,67 @@ class arch242emu:
         # it's supposed to be self.RA = self.ACC and follow the patter to others
         if inst == 32: # to-RA
             self.RA = self.ACC
+            self.CURINST = 'to-ra'
         elif inst == 33: # from-RA
             self.ACC = self.RA
+            self.CURINST = 'from-ra'
         elif inst == 34: # to-RB
             self.RB = self.ACC
+            self.CURINST = 'to-rb'
         elif inst == 35: # from-RB
             self.ACC = self.RB
+            self.CURINST = 'from-rb'
         elif inst == 36: # to-RC
             self.RC = self.ACC
+            self.CURINST = 'to-rc'
         elif inst == 37: # from-RC
             self.ACC = self.RC
+            self.CURINST = 'from-rc'
         elif inst == 38: # to-RD
             self.RD = self.ACC
+            self.CURINST = 'to-rd'
         elif inst == 39: # from-RD
             self.ACC = self.RD
+            self.CURINST = 'from-rd'
         elif inst == 40: # to-RE
             self.RE = self.ACC
+            self.CURINST = 'to-re'
         elif inst == 41: # from-RE
             self.ACC = self.RE
+            self.CURINST = 'from-re'
 
         self.PC += 1
 
     def g_inst(self, inst):
         if inst == 42: #clr-cf
             self.CF = 0 
+            self.CURINST = 'clr-cf'
         elif inst == 43: #set-cf
             self.CF = 1
+            self.CURINST = 'set-cf'
         elif inst == 44: #set-ei
             self.EI = 1
+            self.CURINST = 'set-ei'
         elif inst == 45: #clr-ei
             self.EI = 0
+            self.CURINST = 'clr-ei'
 
         self.PC += 1
 
     def ret(self):
         self.PC = ((self.PC >> 12) << 12) + (self.TEMP & 0xFFF)
         self.TEMP = 0
+        self.CURINST = 'ret'
 
     def h_inst(self, inst):
         if inst == 48: # -
             self.nop(1)
         elif inst == 49: # inc
             self.ACC = (self.ACC + 1) & 0xF
+            self.CURINST = 'inc'
         elif inst == 50: # from-ioa
             self.ACC = self.IOA
+            self.CURINST = 'from-ioa'
         elif inst == 51: # -
             self.nop(1)
         elif inst == 52: # -
@@ -333,15 +386,17 @@ class arch242emu:
         if self.ACC >= 10 or self.CF:
             self.ACC = (self.ACC + 6) & 0xF
             self.CF = 1
+            self.CURINST = 'bcd'
         
         self.PC += 1
 
     def shutdown(self, inst2): # shutdown
         if inst2 == 62:
-            print('closing emulator...')
+            print('Closing emulator...')
             self.PC += 2
             self.CYCLESKIP = True
             self.SHUTDOWN = True
+            self.CURINST = 'shutdown'
         else:
             print('illegal instruction detected')
 
@@ -350,10 +405,12 @@ class arch242emu:
             self.PC += 1
         elif bitwidth == 2:
             self.PC += 2
+        self.CURINST = 'nop'
 
     def dec(self): # dec
         self.ACC = (self.ACC - 1) & 0xF #todo: underflow
         self.PC += 1
+        self.CURINST = 'dec'
 
     def i_inst(self, inst):
         next_instruction = int(self.ASM_MEM[self.PC+1], base=16)
@@ -361,19 +418,25 @@ class arch242emu:
         if inst == 64: # add imm
             result = self.ACC + (next_instruction & 0xF)
             self.ACC = result & 0xF
+            self.CURINST = 'add imm'
         elif inst == 65: # sub imm
             result = self.ACC - (next_instruction & 0xF)
             self.ACC = result & 0xF
+            self.CURINST = 'sub imm'
         elif inst == 66: # and imm
             self.ACC = self.ACC & (next_instruction & 0xF)
+            self.CURINST = 'and imm'
         elif inst == 67: # xor imm
             self.ACC = self.ACC ^ (next_instruction & 0xF)
+            self.CURINST = 'xor imm'
         elif inst == 68: # or imm
             self.ACC = self.ACC | (next_instruction & 0xF)
+            self.CURINST = 'or imm'
         elif inst == 69: # -
             self.nop(1)
         elif inst == 70: # r4 imm
             self.RE = next_instruction & 0xF
+            self.CURINST = 'r4 imm'
         elif inst == 71: # -
             self.nop(1)
 
@@ -386,9 +449,11 @@ class arch242emu:
         if 80 <= inst <= 95: # rarb
             self.RA = (inst - 80) & 0xF
             self.RB = next_instruction & 0xF
+            self.CURINST = 'rarb'
         elif 96 <= inst <= 111: # rcrd
             self.RC = (inst - 96) & 0xF
             self.RD = next_instruction & 0xF
+            self.CURINST = 'rcrd'
         
         self.CYCLESKIP = True    
         self.PC += 2
@@ -396,6 +461,7 @@ class arch242emu:
     def acc(self, inst): # acc
         self.ACC = (inst-112)
         self.PC += 1
+        self.CURINST = 'acc'
 
     def b_bit(self, inst, next_instruction): # b-bit
         bit_position = (inst >> 3) & 0x3
@@ -405,6 +471,7 @@ class arch242emu:
         else:
             self.PC += 2
 
+        self.CURINST = 'b-bit'
         self.CYCLESKIP = True
 
     def k_inst(self, inst):
@@ -419,31 +486,37 @@ class arch242emu:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'bnz-a imm'
         elif 168 <= inst <= 175: # bnz-b imm
             if self.RB != 0:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'bnz-b imm'
         elif 176 <= inst <= 183: # beqz imm
             if self.ACC == 0:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'beqz imm'
         elif 184 <= inst <= 191: # bnez imm
             if self.ACC != 0:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'bnez imm'
         elif 192 <= inst <= 199: # beqz-cf imm
             if self.CF == 0:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'beqz-cf imm'
         elif 200 <= inst <= 207: # bnez-cf imm
             if self.CF != 0:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'bnez-cf imm'
         elif 208 <= inst <= 215: # -
             self.nop(1)
         elif 216 <= inst <= 223: # bnz-d
@@ -451,12 +524,15 @@ class arch242emu:
                 self.PC = decode_next_address()
             else:
                 self.PC += 2
+            self.CURINST = 'bnz-d'
         elif 224 <= inst <= 239: # b
             self.PC = decode_next_address(0xF000)
+            self.CURINST = 'b'
 
         elif 240 <= inst <= 255: # call
             self.TEMP = self.PC + 2
             self.PC = decode_next_address(0xF000)
+            self.CURINST = 'call'
 
         self.CYCLESKIP = True
 
@@ -505,6 +581,10 @@ class arch242emu:
         if pyxel.btn(pyxel.KEY_RIGHT):
             self.IOA |= 8
 
+        if pyxel.btn(pyxel.KEY_Q):
+            print("Quitting Emulator...")
+            quit()
+
         #print(f'Current value of IOA: {bin(self.IOA)}') # IO DEBUG
         #self.LED_CHECK() #LED DEBUG
         
@@ -515,6 +595,7 @@ class arch242emu:
 
         rowval = 0
         colval = 0
+        j = 192
 
         for i in self.MEM[192:242]:
             if colval == 20: 
@@ -526,24 +607,65 @@ class arch242emu:
                     pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0)
                 else:
                     pyxel.blt((c+colval)*32,rowval*32,0,0,0,32,32,0)
-            colval += 4
 
-            # just commenting here just in case i'm wrong, suggestion lang tho
-            # can make your own, rough idea implementation lang to that i didn't really test
-            '''
-            for i in self.MEM[192:242]:
-            if colval == 20: 
-                rowval += 1
-                colval = 0
+                if self.DEBUG:
+                    pyxel.text((c+colval)*32, rowval*32, f'({c+colval},{rowval})', 3)
+                    pyxel.text((c+colval)*32, rowval*32 + 8, f'({j})', 3)
 
-            lower_nibble = i & 0xF  # should only use lower 4 bits kasi nibble
-            for bit_pos in range(4):  # we cehck each bit position
-                if (lower_nibble >> bit_pos) & 1:  # check if bit is set
-                    pyxel.blt((bit_pos+colval)*32,rowval*32,0,32,0,32,32,0)
-                else:
-                    pyxel.blt((bit_pos+colval)*32,rowval*32,0,0,0,32,32,0)
             colval += 4
-            '''
+            j += 1
+
+        # ---/ DEBUG INFORMATION DRAW CODE /---
+
+        pyxel.text(640, 2, 'Arch-242 Emulator', 3)
+
+        pyxel.text(640, 18, 'Program Name:', 3)
+        pyxel.text(640, 26, self.TITLE, 3)
+
+        pyxel.text(640, 42, 'Current Instruction:', 3)
+
+        if self.PC < len(self.ASM_MEM):
+            pyxel.text(640, 50, self.CURINST, 3)
+        else:
+            pyxel.text(640, 50, 'END OF PROGRAM', 3)
+
+        pyxel.text(640, 66, 'CPU CLOCK COUNT:', 3)
+        pyxel.text(640, 74, str(self.CLOCK), 3)
+
+        pyxel.text(640, 90, 'PROGRAM COUNTER:', 3)
+        pyxel.text(640, 98, str(self.PC), 3)
+
+        pyxel.text(640, 114, 'REGISTERS:', 3)
+
+        pyxel.text(640, 130, f'ACC: {bin(self.ACC)}', 3)
+
+        pyxel.text(640, 146, f'RA: {bin(self.RA)}', 3)
+        pyxel.text(640, 154, f'RB: {bin(self.RB)}', 3)
+        pyxel.text(640, 162, f'RC: {bin(self.RC)}', 3)
+        pyxel.text(640, 170, f'RD: {bin(self.RD)}', 3)
+        pyxel.text(640, 178, f'RE: {bin(self.RE)}', 3)
+
+        pyxel.text(640, 194, f'IOA: {bin(self.IOA)}', 3)
+        pyxel.text(640, 202, f'TEMP: {bin(self.TEMP)}', 3)
+        pyxel.text(640, 210, f'CF: {bin(self.CF)}', 3)
+        pyxel.text(640, 218, f'EI: {bin(self.EI)}', 3)
+
+        # just commenting here just in case i'm wrong, suggestion lang tho
+        # can make your own, rough idea implementation lang to that i didn't really test
+        '''
+        for i in self.MEM[192:242]:
+        if colval == 20: 
+            rowval += 1
+            colval = 0
+
+        lower_nibble = i & 0xF  # should only use lower 4 bits kasi nibble
+        for bit_pos in range(4):  # we cehck each bit position
+            if (lower_nibble >> bit_pos) & 1:  # check if bit is set
+                pyxel.blt((bit_pos+colval)*32,rowval*32,0,32,0,32,32,0)
+            else:
+                pyxel.blt((bit_pos+colval)*32,rowval*32,0,0,0,32,32,0)
+        colval += 4
+        '''
 
 if __name__ == "__main__":
     init()
