@@ -383,7 +383,9 @@ after_read_keypad:
     b move_snake
 
 after_move:
-    # TODO: pseudo random spawning of food, depende na lang sa position ng head or tail
+    b update_score_display
+    
+after_update_score_display:
     b food_spawn
 
 after_food_spawn:
@@ -522,19 +524,16 @@ move_snake:
     # load head_row into RA
     rarb 0x81
     from-mba # ACC = MEM[0x81]
-    # nop # RA = 0b0011
     to-ra # REG[RA] = ACC
 
     # load head_col into RB
     rarb 0x82
     from-mba # ACC = MEM[0x82]
-    # nop # RB = 0b0011
     to-rb # REG[RB] = ACC
 
     # load direction into RC
     rarb 0x80
     from-mba # ACC = MEM[0x80]
-    # nop # MEM[0x80] = 0b0001
     to-rc # REC[RC] = ACC
 
     # calculate new_head_row, new_head_col (check walls -> collision)
@@ -559,7 +558,6 @@ move_snake:
 move_up:
     rcrd 0x81
     from-mdc # ACC = old_head_row
-    # nop # it doesn't go here!
     beqz bounds_collision # if old_head_row = 0, umabot sa up bounds, so DEADS
 
     # else, update old_head_row 
@@ -574,15 +572,12 @@ move_up:
 move_right:
     rcrd 0x82
     from-mdc # ACC = old_head_col
-    # nop # RB = 0b1000?? pag from-rb lang
     sub 7
     beqz bounds_collision # if old_head_col - 7 = 0, umabot sa right bounds, so DEADS
 
     # else, update old_head_col
     from-mdc
-    # nop # RB = 0b1000??
     add 1
-    # nop # RB = 0b1001??
     to-mdc # new_head_col = old_head_col + 1
 
     # we don't need to update old_head_row here
@@ -1056,7 +1051,7 @@ update_score:
     to-mba # MEM[0x88] = ACC
 
 update_food_index:
-    # 2. TODO: update food_index to be a non-valid index!
+    # 2. update food_index to be a non-valid index!
     # this would be an edge case, if the tail catches on this again
     # kaya it's important to update this again in food_spawn
 
@@ -1324,7 +1319,7 @@ retain_snake_length:
     b turn_off_old_tail_led
 
 turn_off_old_tail_led:
-    # 1.1 TODO: turn off translated(tail_row, tail_col)
+    # 1.1 turn off translated(tail_row, tail_col)
 
     # PSEUDOCODE FOR TURNING OFF AN LED GIVEN RA, RB (tail_row, tail_col) index
     # fetch and calculate translatedRB_tail, translatedRA_tail from the precomputed table, store it temporarily in MEM[0xAE], MEM[0xAF]
@@ -1751,6 +1746,174 @@ food_spawn:
 
 # /========== food_spawn ==========/ 
 
+
+
+# ========== update_score_display ==========
+update_score_display:
+    # TODO: update score display in LED matrix
+    # NOTE: I actually set score to have two nibbles so it can support up to max score of 255, but since required lang is at most 15, it's okay if we read from MEM[0x89]
+
+    # PSEUDOCODE
+    # hardcode ifs from score 0 to 15
+    # if MEM[0x89] == 0: show_0
+    # if MEM[0x89] == 1: show_1
+    # ...
+    # if MEM[0x89] == 15: show_15
+
+    acc 0x0
+    rarb 0x89
+    xor-ba # ACC = 0x0 ^ MEM[0x89]
+    beqz show_0
+
+    acc 0x1
+    rarb 0x89
+    xor-ba # ACC = 0x1 ^ MEM[0x89]
+    beqz show_1
+
+    acc 0x2
+    rarb 0x89
+    xor-ba # ACC = 0x2 ^ MEM[0x89]
+    beqz show_2
+
+    acc 0x3
+    rarb 0x89
+    xor-ba # ACC = 0x3 ^ MEM[0x89]
+    beqz show_3
+
+    acc 0x4
+    rarb 0x89
+    xor-ba # ACC = 0x4 ^ MEM[0x89]
+    beqz show_4
+
+    acc 0x5
+    rarb 0x89
+    xor-ba # ACC = 0x5 ^ MEM[0x89]
+    beqz show_5
+
+    acc 0x6
+    rarb 0x89
+    xor-ba # ACC = 0x6 ^ MEM[0x89]
+    beqz show_6
+
+    acc 0x7
+    rarb 0x89
+    xor-ba # ACC = 0x7 ^ MEM[0x89]
+    beqz show_7
+
+    acc 0x8
+    rarb 0x89
+    xor-ba # ACC = 0x8 ^ MEM[0x89]
+    beqz show_8
+
+    acc 0x9
+    rarb 0x89
+    xor-ba # ACC = 0x9 ^ MEM[0x89]
+    beqz show_9
+
+    acc 0xA
+    rarb 0x89
+    xor-ba # ACC = 0xA ^ MEM[0x89]
+    beqz show_10
+
+    acc 0xB
+    rarb 0x89
+    xor-ba # ACC = 0xB ^ MEM[0x89]
+    beqz show_11
+
+    acc 0xC
+    rarb 0x89
+    xor-ba # ACC = 0xC ^ MEM[0x89]
+    beqz show_12
+
+    acc 0xD
+    rarb 0x89
+    xor-ba # ACC = 0xD ^ MEM[0x89]
+    beqz show_13
+
+    acc 0xE
+    rarb 0x89
+    xor-ba # ACC = 0xE ^ MEM[0x89]
+    beqz show_14
+
+    acc 0xF
+    rarb 0x89
+    xor-ba # ACC = 0xF ^ MEM[0x89]
+    beqz show_15
+
+    # if score is greater than 15, just go back to the loop, don't update score display!
+    b after_update_score_display
+# /========== update_score_display ==========/
+
+
+
+# ========== hardcoded-mappings ==========
+# TODO: ipakita lang dito according kung ano ung sa spreadsheet
+
+show_0:
+
+    b after_update_score_display
+
+show_1:
+
+    b after_update_score_display
+
+show_2:
+
+    b after_update_score_display
+
+show_3:
+
+    b after_update_score_display
+
+show_4:
+
+    b after_update_score_display
+
+show_5:
+
+    b after_update_score_display
+
+show_6:
+
+    b after_update_score_display
+
+show_7:
+
+    b after_update_score_display
+
+show_8:
+
+    b after_update_score_display
+
+show_9:
+
+    b after_update_score_display
+
+show_10:
+
+    b after_update_score_display
+
+show_11:
+
+    b after_update_score_display
+
+show_12:
+
+    b after_update_score_display
+
+show_13:
+
+    b after_update_score_display
+
+show_14:
+
+    b after_update_score_display
+
+show_15:
+
+    b after_update_score_display
+
+# /========== hardcoded-mappings ==========/
 
 
 # ========== game over ==========
