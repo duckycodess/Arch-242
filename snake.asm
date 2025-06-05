@@ -9,10 +9,13 @@
 # 222 (bit 0-3), 223 (bit 0-3)
 # 227 (bit 0-3), 228 (bit 0-3)
 # 232 (bit 0-3), 233 (bit 0-3)
-# NOTE: we update our translation method to LED matrix in every function
+# TODO: we need to update our translation method to LED matrix in every function
+#  - check_if_self_collision = head_row, head_col in 0xAA, 0xAB. don't forget to put translated to 0xAC, 0xAD
+#  - grow_the_snake = head_row, head_col from check_if_self_collision in 0xAA, 0xAB
+#  - retain_snake_length = tail_row, tail_col
 
 # Memory Mappings
-# snake body [0 to 127] or [0x00 to 0x7F], TODO: implement a queue
+# snake body [0 to 127] or [0x00 to 0x7F], implemented queue, we can still reuse this
 # we split this into rows[] and cols[] arrays so
 # rows [0x00 to 0x3F]
 # cols [0x40 to 0x7F]
@@ -49,8 +52,6 @@
 
 # this is where the emulator puts the info about which keys are pressed
 # ioa [176] or [0xB0], 0001=up, 0010=right, 0100=down, 1000=left 
-# iob [177] or [0xB1] (unused so far)
-# ioc [178] or [0xB2] (unused so far)
 
 # two nibbles are alloted for each pointer since 0..63 requires 6 bits
 # queue head_ptr [179, 180] or [0xB3, 0xB4]
@@ -296,8 +297,8 @@ read_keypad:
 check_up: # if IOA=0001, set direction variable to up
     rarb 0xB0 # IOA
     acc 0x1
-    and-ba # ACC = 0b0001 & MEM[IOA]
-    beqz check_right # if ACC is not 1, it must be other direction
+    xor-ba # ACC = 0b0001 ^ MEM[IOA]
+    bnez check_right # if ACC is not 0, it must be other direction
     
     # else, set direction to up
     acc 0x0 
@@ -305,23 +306,11 @@ check_up: # if IOA=0001, set direction variable to up
     to-mba # set MEM[0x80] = 0x0
     b done_read
 
-check_right: # if IOA=0010, set direction variable to right
+check_right: # if IOA=0010, set direction variable to down
     rarb 0xB0 # IOA
     acc 0x2
-    and-ba # ACC = 0b0010 & MEM[IOA]
-    beqz check_down # if ACC is not 1, it must be other direction
-
-    # else, set direction to right
-    acc 0x1
-    rarb 0x80
-    to-mba # set MEM[0x80] = 0x1
-    b done_read
-
-check_down: # if IOA=0100, set direction variable to down
-    rarb 0xB0 # IOA
-    acc 0x4
-    and-ba # ACC = 0b0100 & MEM[IOA]
-    beqz check_left # if ACC is not 1, it must other direction
+    xor-ba # ACC = 0b0010 ^ MEM[IOA]
+    bnez check_down # if ACC is not 0, it must be other direction
 
     # else, set direction to down
     acc 0x2
@@ -329,16 +318,76 @@ check_down: # if IOA=0100, set direction variable to down
     to-mba # set MEM[0x80] = 0x2
     b done_read
 
-check_left: # if IOA=1000, set direction variable to left
+check_down: # if IOA=0100, set direction variable to left
     rarb 0xB0 # IOA
-    acc 0x8
-    and-ba # ACC = 0b1000 & MEM[IOA]
-    beqz no_keypad # we've exhausted all directions, so illegal key 'to
+    acc 0x4
+    xor-ba # ACC = 0b0100 ^ MEM[IOA]
+    bnez check_left # if ACC is not 0, it must other direction
 
     # else, set direction to left
     acc 0x3
     rarb 0x80
     to-mba # set MEM[0x80] = 0x3
+    b done_read
+
+check_left: # if IOA=1000, set direction variable to right
+    rarb 0xB0 # IOA
+    acc 0x8
+    xor-ba # ACC = 0b1000 ^ MEM[IOA]
+    bnez check_up_right # we've exhausted all single directions, this must be a diagonal
+
+    # else, set direction to right
+    acc 0x1
+    rarb 0x80
+    to-mba # set MEM[0x80] = 0x1
+    b done_read
+
+check_up_right: # if IOA=1001, set direction variable to up
+    rarb 0xB0 # IOA
+    acc 0x9
+    xor-ba # ACC = 0b1001 ^ MEM[IOA]
+    bnez check_up_left # check other diagonals
+
+    # else, set direction to up
+    acc 0x0
+    rarb 0x80
+    to-mba # set MEM[0x80] = 0x0
+    b done_read
+
+check_up_left: # if IOA=0101, set direction variable to up
+    rarb 0xB0 # IOA
+    acc 0x5
+    xor-ba # ACC = 0b0101 ^ MEM[IOA]
+    bnez check_down_right # check other diagonals
+
+    # else, set direction to up
+    acc 0x0
+    rarb 0x80
+    to-mba # set MEM[0x80] = 0x0
+    b done_read
+
+check_down_right: # if IOA=1010, set direction variable to down
+    rarb 0xB0 # IOA
+    acc 0xA
+    xor-ba # ACC = 0b1010 ^ MEM[IOA]
+    bnez check_down_left # check other diagonals
+
+    # else, set direction to down
+    acc 0x2
+    rarb 0x80
+    to-mba # set MEM[0x80] = 0x2
+    b done_read
+
+check_down_left: # if IOA=0110, set direction variable to down
+    rarb 0xB0 # IOA
+    acc 0x6
+    xor-ba # ACC = 0b0110 ^ MEM[IOA]
+    bnez no_keypad # for more than or equal to 3 inputs or 180 deg input, disregard as no input
+
+    # else, set direction to down
+    acc 0x2
+    rarb 0x80
+    to-mba # set MEM[0x80] = 0x2
     b done_read
 
 no_keypad:
