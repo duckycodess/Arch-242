@@ -345,20 +345,19 @@ initialize_states:
 
 
     # 6. spawn the first food initially beside the snake LED = [0xDE]
-    # 6.1 put food coords (3,7) to MEM[0x85] and MEM[0x86] respectively
+    # 6.1 put food coords (3,6) to MEM[0x85] and MEM[0x86] respectively
     acc 0x3
     rarb 0x85
     to-mba
     
-    acc 0x7
+    acc 0x5
     rarb 0x86
     to-mba
 
     # 6.2 light up the food in the led matrix
-    acc 0x4
+    acc 0x2
     rarb 0xD5
     to-mba
-
     
     b game_loop
 # /========== start ==========/ 
@@ -523,16 +522,19 @@ move_snake:
     # load head_row into RA
     rarb 0x81
     from-mba # ACC = MEM[0x81]
+    # nop # RA = 0b0011
     to-ra # REG[RA] = ACC
 
     # load head_col into RB
     rarb 0x82
     from-mba # ACC = MEM[0x82]
+    # nop # RB = 0b0011
     to-rb # REG[RB] = ACC
 
     # load direction into RC
     rarb 0x80
     from-mba # ACC = MEM[0x80]
+    # nop # MEM[0x80] = 0b0001
     to-rc # REC[RC] = ACC
 
     # calculate new_head_row, new_head_col (check walls -> collision)
@@ -555,60 +557,78 @@ move_snake:
     b game_over # pandebug nalang
 
 move_up:
-    from-ra # ACC = old_head_row
-    beqz collision # if old_head_row = 0, umabot sa up bounds, so DEADS
+    rcrd 0x81
+    from-mdc # ACC = old_head_row
+    # nop # it doesn't go here!
+    beqz bounds_collision # if old_head_row = 0, umabot sa up bounds, so DEADS
 
     # else, update old_head_row 
-    from-ra
+    from-mdc
     sub 1 # this is valid now
-    to-ra # new_head_row = old_head_row - 1
+    to-mdc # new_head_row = old_head_row - 1
 
     # we don't need to update old_head_col here
     # new_head_col = old_head_col
     b check_if_self_collision 
 
 move_right:
-    from-rb # ACC = old_head_col
+    rcrd 0x82
+    from-mdc # ACC = old_head_col
+    # nop # RB = 0b1000?? pag from-rb lang
     sub 7
-    beqz collision # if old_head_col - 7 = 0, umabot sa right bounds, so DEADS
+    beqz bounds_collision # if old_head_col - 7 = 0, umabot sa right bounds, so DEADS
 
     # else, update old_head_col
-    from-rb
+    from-mdc
+    # nop # RB = 0b1000??
     add 1
-    to-rb # new_head_col = old_head_col + 1
+    # nop # RB = 0b1001??
+    to-mdc # new_head_col = old_head_col + 1
 
     # we don't need to update old_head_row here
     # new_head_row = old_head_row
     b check_if_self_collision
 
 move_down:
-    from-ra # ACC = old_head_row
+    rcrd 0x81
+    from-mdc # ACC = old_head_row
     sub 7
-    beqz collision # if old_head_row - 7 = 0, umabot sa bot bounds, so DEADS
+    beqz bounds_collision # if old_head_row - 7 = 0, umabot sa bot bounds, so DEADS
 
     # else, update old_head_row
-    from-ra
+    from-mdc
     add 1
-    to-ra # new_head_row = old_head_row + 1
+    to-mdc # new_head_row = old_head_row + 1
 
     # we don't need to update old_head_col here
     # new_head_col = old_head_col
     b check_if_self_collision
 
 move_left:
-    from-rb # ACC = old_head_col
-    beqz collision # if old_head_row = 0, umabot sa left bounds, so DEADS
+    rcrd 0x82
+    from-mdc # ACC = old_head_col
+    beqz bounds_collision # if old_head_row = 0, umabot sa left bounds, so DEADS
 
     # else, update old_head_col
-    from-rb
+    from-mdc
     sub 1
-    to-rb # new_head_col = old_head_col - 1
+    to-mdc # new_head_col = old_head_col - 1
 
     # we don't need to update old_head_row here
     # new_head_row = old_head_row
     b check_if_self_collision
     
 check_if_self_collision:
+    # nagiiba RA tsaka RB here so I just extracted directly from 0x81 and 0x82
+
+    rcrd 0x81
+    from-mdc
+    to-ra
+
+    rcrd 0x82
+    from-mdc
+    to-rb
+
     # here we check if new_head_row (RA) and new_head_col (RB) collides with snake body 
 
     # PSEUDOCODE
@@ -709,10 +729,14 @@ check_if_self_collision:
     # store back RB from MEM[0xAB]
     rcrd 0xAB
     from-mdc # ACC = RB
+    
+    rcrd 0xA8
+    to-mdc # MEM[0xA8] = RB
 
     # perform RB - 4
     rarb 0xB1
     sub-mba # ACC = ACC - MEM[0xB1] = RB - 0x4
+
 
     bnez-cf check_if_turned_on # if CF is not 0, we don't add 1 to the address na, we're on the right address
 
@@ -964,7 +988,7 @@ check_same_food_row_col:
     from-mdc # ACC = REG[RA]
     rarb 0x85
     xor-ba # ACC = ACC ^ MEM[0x85] = REG[RA] ^ food_row
-    bnez collision # if new_head_row != food_row, then there's a collision since it must be the body
+    bnez self_collision # if new_head_row != food_row, then there's a collision since it must be the body
 
     # else, another check pa
     # compare RB and food_col
@@ -972,7 +996,7 @@ check_same_food_row_col:
     from-mdc # ACC = REG[RB]
     rarb 0x86
     xor-ba # ACC = ACC ^ MEM[0x86] = REG[RB] ^ food_col
-    bnez collision # if new_head_col != food_col, then there's a collision since it must be the body
+    bnez self_collision # if new_head_col != food_col, then there's a collision since it must be the body
    
     # at this point, it's just the food! go to check_if_food to know whether the snake would grow or retain
     b check_if_food
@@ -1372,6 +1396,10 @@ turn_off_old_tail_led:
     rcrd 0x84
     from-mdc # ACC = RB
 
+    # OOPSIE DAISY HERE LMAO! forgot to write here
+    rcrd 0xA9
+    to-mdc # MEM[0xA9] = RB
+
     # perform RB - 4
     rarb 0xB1
     sub-mba # ACC = ACC - MEM[0xB1] = RB - 0x4
@@ -1719,12 +1747,17 @@ food_spawn:
     #     if normalizedRB == 3, MEM[translated(RB:RA)] |= 0b1000
     # NOTE: nakaOR ops para di natin matouch ung other 3 bits in that address
 
+    b after_food_spawn # OOPSIE DAISY NUMBER 2
+
 # /========== food_spawn ==========/ 
 
 
 
-# ========== game over ========== 
-collision:
+# ========== game over ==========
+self_collision:
+    b game_over
+
+bounds_collision:
     b game_over
 
 game_over:
