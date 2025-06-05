@@ -1,15 +1,14 @@
 import pyxel
 #TODO:
-# - underflow check
-# - instruction ret
-# - keyboard I/O (support diagonal inputs)
+# input file to asm -> assemble to bin during runtime
+# unit testing
 
 class arch242emu:
 
     # ---/ INITIALIZE PYXEL AND EMULATOR ELEMENTS /---
 
     def __init__(self, binfile):
-        pyxel.init(640,320,title="Arch-242 LED Matrix")
+        pyxel.init(640,320,title="Arch-242 LED Matrix", fps=30) #fps -> clock speed of emulator
         pyxel.load('assets/assets.pyxres')
 
         self.RA = 0b0000
@@ -212,23 +211,23 @@ class arch242emu:
             if inst == 16: # inc*-RA
                 self.RA = (self.RA + 1) & 0xF
             elif inst == 17: # dec*-RA
-                self.RA = (self.RA - 1) & 0xF #TODO: underflow
+                self.RA = (self.RA - 1) & 0xF
             elif inst == 18: # inc*-RB
                 self.RB = (self.RB + 1) & 0xF
             elif inst == 19: # dec*-RB
-                self.RB = (self.RB - 1) & 0xF #TODO: underflow
+                self.RB = (self.RB - 1) & 0xF
             elif inst == 20: # inc*-RC
                 self.RC = (self.RC + 1) & 0xF
             elif inst == 21: # dec*-RC
-                self.RC = (self.RC - 1) & 0xF #TODO: underflow
+                self.RC = (self.RC - 1) & 0xF
             elif inst == 22: # inc*-RD
                 self.RD = (self.RD + 1) & 0xF
             elif inst == 23: # dec*-RD
-                self.RD = (self.RD - 1) & 0xF #TODO: underflow
+                self.RD = (self.RD - 1) & 0xF
             elif inst == 24: # inc*-RE
                 self.RE = (self.RE + 1) & 0xF
             elif inst == 25: # inc*-RE
-                self.RE = (self.RE - 1) & 0xF #TODO: underflow
+                self.RE = (self.RE - 1) & 0xF
 
         self.PC += 1
 
@@ -287,16 +286,18 @@ class arch242emu:
         self.PC += 1
 
     def ret(self):
-        ...
+        self.PC = ((self.PC >> 12) << 12) + (self.TEMP & 0xFFF)
+        self.TEMP = 0
+
+        PC += 1
 
     def h_inst(self, inst):
-        # from-ioa is supposed to be 50 na (nakaligtaan ko rin)
-        if inst == 50: # from-ioa
-            self.ACC = self.IOA
+        if inst == 48: # -
+            self.nop(1)
         elif inst == 49: # inc
             self.ACC = (self.ACC + 1) & 0xF
-        elif inst == 48: # -
-            self.nop(1)
+        elif inst == 50: # from-ioa
+            self.ACC = self.IOA
         elif inst == 51: # -
             self.nop(1)
         elif inst == 52: # -
@@ -316,7 +317,7 @@ class arch242emu:
     def shutdown(self, inst2): # shutdown
         if inst2 == 62:
             print('closing emulator...')
-            self.PC += 1
+            self.PC += 2
             self.CYCLESKIP = True
             self.SHUTDOWN = True
         else:
@@ -354,8 +355,9 @@ class arch242emu:
         elif inst == 71: # -
             self.nop(1)
 
-        self.CYCLESKIP = True
-        self.PC += 2   
+        if not (inst == 69 or inst == 71):
+            self.CYCLESKIP = True
+            self.PC += 2   
 
     def j_inst(self, inst):
         next_instruction = int(self.ASM_MEM[self.PC+1], base=16)
@@ -451,7 +453,7 @@ class arch242emu:
         else:
             self.LED_DEBUG = 0
 
-        #print(f'Memory of Memory Address {192 + self.LED_DEBUG}: {bin(self.MEM[192 + self.LED_DEBUG])}')
+        print(f'Memory of Memory Address {192 + self.LED_DEBUG}: {bin(self.MEM[192 + self.LED_DEBUG])}')
 
     # ---/ KEYBOARD IO + EMULATOR ROOT CODE /---
 
@@ -471,30 +473,24 @@ class arch242emu:
                 self.CYCLESKIP = False
 
         #IO check
-        if pyxel.btn(pyxel.KEY_UP):
-            print("UP KEY PRESSED")
-            self.IOA = 1    #correct me if im wrong
-        elif pyxel.btn(pyxel.KEY_DOWN):
-            print("DOWN KEY PRESSED")
-            self.IOA = 2
-        elif pyxel.btn(pyxel.KEY_LEFT):
-            print("LEFT KEY PRESSED")
-            self.IOA = 4
-        elif pyxel.btn(pyxel.KEY_RIGHT):
-            print("RIGHT KEY PRESSED")
-            self.IOA = 8
-        else:
-            self.IOA = 0
+        self.IOA &= 0b0000
 
-        print(f'Current value of IOA: {bin(self.IOA)}')
+        if pyxel.btn(pyxel.KEY_UP):
+            self.IOA |= 1
+        if pyxel.btn(pyxel.KEY_DOWN):
+            self.IOA |= 2
+        if pyxel.btn(pyxel.KEY_LEFT):
+            self.IOA |= 4
+        if pyxel.btn(pyxel.KEY_RIGHT):
+            self.IOA |= 8
+
+        print(f'Current value of IOA: {bin(self.IOA)}') # IO DEBUG
 
         self.LED_CHECK() #LED DEBUG
         
     # ---/ LED MATRIX DRAW CODE /---
 
     def draw(self):
-        #TODO: Make a 20x10 column LED Matrix.
-        #somehow probe all of these into the emulator. Future me will handle this I trust
         pyxel.cls(0)
 
         rowval = 0
@@ -507,7 +503,7 @@ class arch242emu:
 
             for c,k in enumerate(self.LED[i]):
                 if k:
-                    pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0) #NOTE:Change this
+                    pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0)
                 else:
                     pyxel.blt((c+colval)*32,rowval*32,0,0,0,32,32,0)
             colval += 4
