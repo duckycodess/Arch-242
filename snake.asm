@@ -1826,7 +1826,280 @@ food_spawn:
     #     if normalizedRB == 3, MEM[translated(RB:RA)] |= 0b1000
     # NOTE: nakaOR ops para di natin matouch ung other 3 bits in that address
 
-    b after_food_spawn # OOPSIE DAISY NUMBER 2
+    # Check if we need to spawn food (food coords at 0xF means eaten)
+    rcrd 0x85
+    from-mdc
+    sub 0xF
+    bnez after_food_spawn  # if food_row != 0xF, food still exists
+    
+    # Generate pseudo-random food position
+    b generate_food_position
+
+generate_food_position:
+    # Generate food_row = (head_row + tail_row + direction) & 0x7
+    # 1. Get head_row
+    rcrd 0x81
+    from-mdc
+    rcrd 0xB1
+    to-mdc  # temp store head_row in 0xB1
+    
+    # 2. Add tail_row
+    rcrd 0x83
+    from-mdc
+    rarb 0xB1
+    add-mba  # ACC = head_row + tail_row
+    
+    # 3. Add direction
+    rarb 0x80
+    add-mba  # ACC = head_row + tail_row + direction
+    
+    # 4. Mask to keep within 0-7
+    and 0x7
+    rcrd 0xB1
+    to-mdc  # Store candidate food_row in 0xB1
+    
+    # Generate food_col = (head_col + tail_col + score) & 0x7
+    # 1. Get head_col
+    rcrd 0x82
+    from-mdc
+    rcrd 0xB2
+    to-mdc  # temp store head_col in 0xB2
+    
+    # 2. Add tail_col
+    rcrd 0x84
+    from-mdc
+    rarb 0xB2
+    add-mba  # ACC = head_col + tail_col
+    
+    # 3. Add score (low nibble)
+    rarb 0x89
+    add-mba  # ACC = head_col + tail_col + score
+    
+    # 4. Mask to keep within 0-7
+    and 0x7
+    rcrd 0xB2
+    to-mdc  # Store candidate food_col in 0xB2
+    
+    # Now check if this position is valid
+    b check_food_position_valid
+
+check_food_position_valid:
+    # Load candidate position into RA, RB
+    rcrd 0xB1
+    from-mdc
+    to-reg 0  # RA = candidate food_row
+    
+    rcrd 0xB2
+    from-mdc
+    to-reg 1  # RB = candidate food_col
+    
+    # Store in temp locations for LED checking
+    from-reg 0
+    rcrd 0xAA
+    to-mdc  # MEM[0xAA] = food_row
+    
+    from-reg 1
+    rcrd 0xAB
+    to-mdc  # MEM[0xAB] = food_col
+    
+    # Translate to LED matrix coordinates
+    # 1. Translate RB
+    acc 0x9
+    to-reg 1
+    
+    rcrd 0xAA
+    from-mdc
+    to-reg 0
+    
+    from-mba
+    rcrd 0xAC
+    to-mdc  # translatedRB in 0xAC
+    
+    # 2. Translate RA
+    acc 0xA
+    to-reg 1
+    
+    rcrd 0xAA
+    from-mdc
+    to-reg 0
+    
+    from-mba
+    rcrd 0xAD
+    to-mdc  # translatedRA in 0xAD
+    
+    # Check if we need to adjust for col >= 4
+    acc 0x4
+    rcrd 0xB7
+    to-mdc
+    
+    rcrd 0xAB
+    from-mdc
+    rcrd 0xA8
+    to-mdc  # Store RB for normalization
+    
+    rarb 0xB7
+    sub-mba
+    
+    bnez-cf check_food_led_status
+    
+    # Adjust addresses if col >= 4
+    acc 0x1
+    rarb 0xAD
+    clr-cf
+    add-mba
+    to-mba
+    
+    acc 0x0
+    rarb 0xAC
+    addc-mba
+    to-mba
+    
+    # Normalize RB
+    acc 0x4
+    rcrd 0xB7
+    to-mdc
+    
+    rcrd 0xAB
+    from-mdc
+    rarb 0xB7
+    sub-mba
+    rcrd 0xA8
+    to-mdc
+
+check_food_led_status:
+    # Load translated addresses
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    
+    # Check if any bit is on at this position
+    from-mba
+    beqz food_position_is_free  # If all bits off, position is free
+    
+    # Position occupied, try next position
+    b adjust_food_position
+
+adjust_food_position:
+    # Simple adjustment: increment col, wrap around if needed
+    rcrd 0xB2
+    from-mdc
+    add 0x1
+    and 0x7  # Keep within 0-7
+    rcrd 0xB2
+    to-mdc
+    
+    # If we wrapped to 0, also increment row
+    bnez check_food_position_valid
+    
+    # Increment row too
+    rcrd 0xB1
+    from-mdc
+    add 0x1
+    and 0x7
+    rcrd 0xB1
+    to-mdc
+    
+    b check_food_position_valid
+
+food_position_is_free:
+    # Update food position in memory
+    rcrd 0xB1
+    from-mdc
+    rcrd 0x85
+    to-mdc  # MEM[0x85] = food_row
+    
+    rcrd 0xB2
+    from-mdc
+    rcrd 0x86
+    to-mdc  # MEM[0x86] = food_col
+    
+    # Turn on food LED
+    b turn_on_food_led
+
+turn_on_food_led:
+    # We already have normalized RB in 0xA8
+    # Check which bit to turn on
+    
+    # Check if normalizedRB == 0
+    acc 0x0
+    rarb 0xA8
+    xor-ba
+    beqz turn_on_food_bit_0
+    
+    # Check if normalizedRB == 1
+    acc 0x1
+    rarb 0xA8
+    xor-ba
+    beqz turn_on_food_bit_1
+    
+    # Check if normalizedRB == 2
+    acc 0x2
+    rarb 0xA8
+    xor-ba
+    beqz turn_on_food_bit_2
+    
+    # Must be 3
+    b turn_on_food_bit_3
+
+turn_on_food_bit_0:
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    
+    acc 0x1
+    or*-mba
+    
+    b after_food_spawn
+
+turn_on_food_bit_1:
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    
+    acc 0x2
+    or*-mba
+    
+    b after_food_spawn
+
+turn_on_food_bit_2:
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    
+    acc 0x4
+    or*-mba
+    
+    b after_food_spawn
+
+turn_on_food_bit_3:
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    
+    acc 0x8
+    or*-mba
+    
+    b after_food_spawn
 
 # /========== food_spawn ==========/ 
 
