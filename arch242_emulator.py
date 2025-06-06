@@ -16,7 +16,7 @@ class arch242emu:
     # ---/ INITIALIZE PYXEL AND EMULATOR ELEMENTS /---
 
     def __init__(self, file):
-        pyxel.init(720,320,title="Arch-242 LED Matrix", fps=1000) #fps -> clock speed of emulator
+        pyxel.init(720,320,title="Arch-242 LED Matrix", fps=700) #fps -> clock speed of emulator
         pyxel.load('assets/assets.pyxres')
 
         print("Initializing Emulator...")
@@ -134,6 +134,7 @@ class arch242emu:
 
         elif val == 62: # (62): nop
             self.nop(1)
+            print("skrrrttt")
 
         elif val == 63: # (63): dec
             self.dec()
@@ -597,31 +598,133 @@ class arch242emu:
         colval = 0
         j = 192
 
+        food_row = self.MEM[0x85] & 0xF
+        food_col = self.MEM[0x86] & 0xF
+        head_row = self.MEM[0x81] & 0xF
+        head_col = self.MEM[0x82] & 0xF
+        
         for i in self.MEM[192:242]:
             if colval == 20: 
                 rowval += 1
                 colval = 0
 
-            for c,k in enumerate(self.LED[i]):
-                if k:
-                    pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0)
-                else:
-                    pyxel.blt((c+colval)*32,rowval*32,0,0,0,32,32,0)
-
+            for c in range(4):
+                bit_on = (i >> c) & 1
+                
+                x_pos = (c + colval) * 32
+                y_pos = rowval * 32
+                
+                element_type = self.get_led_element_type(j, c, bit_on, food_row, food_col, head_row, head_col)
+                sprite_x, sprite_y = self.get_sprite_position(element_type)
+                pyxel.blt(x_pos, y_pos, 0, sprite_x, sprite_y, 32, 32, 0)
+                
                 if self.DEBUG:
-                    pyxel.text((c+colval)*32, rowval*32, f'({c+colval},{rowval})', 3)
-                    pyxel.text((c+colval)*32, rowval*32 + 8, f'({j})', 3)
+                    game_pos = self.led_to_game_coords(j, c)
+                    if game_pos:
+                        pyxel.text(x_pos + 2, y_pos + 2, f'({game_pos[0]},{game_pos[1]})', 3)
+                    pyxel.text(x_pos + 2, y_pos + 24, f'({j:02X})', 3)
 
             colval += 4
             j += 1
 
-        # ---/ DEBUG INFORMATION DRAW CODE /---
+        self.draw_debug_info()
 
+    def get_sprite_position(self, element_type):
+        sprite_map = {
+            "off_background": (0, 0), # background nung snake game itself
+            "food": (32, 0),           # food sprite
+            "bg_score": (64, 0),       # bg of scoreboard, turned off led
+            "score": (96, 0),          # score led turned on
+            "border": (128, 0),        # border sprite
+            "snake": (160, 0),         # snake sprite
+        }
+        return sprite_map.get(element_type, (192, 0))
+
+    def get_led_element_type(self, addr, bit_pos, bit_on, food_row, food_col, head_row, head_col):
+        # address ng borderss
+        border_addresses = {
+            0xC0, 0xC1, 0xC2, 0xC3, 0xC4,  # top border
+            0xC7, 0xCC, 0xD1, 0xD6, 0xDB, 0xE0, 0xE5, 0xEA,  #sSide borders
+            0xED, 0xEE, 0xEF, 0xF0, 0xF1   # bottom border
+        }
+        
+        # display score address
+        score_addresses = {
+            0xCD, 0xCE,
+            0xD2, 0xD3, 0xD7, 0xD8, 0xDC, 0xDD,
+            0xE1, 0xE2, 0xE6, 0xE7
+        }
+        
+        # check muna if border
+        if addr in border_addresses:
+            return "border"
+
+        if addr in score_addresses:
+            if bit_on:
+                return "score"
+            else:
+                return "bg_score"
+
+        game_coords = self.led_to_game_coords(addr, bit_pos)
+        if game_coords:
+            row, col = game_coords
+            
+            if bit_on:
+                if row == food_row and col == food_col and food_row != 0xF:
+                    return "food"
+                else:
+                    return "snake"
+            else:
+                return "off_background"
+        
+        return "bg_score"
+
+    def led_to_game_coords(self, addr, bit_pos):
+        game_grid_mapping = {
+            # row 0 - addresses 197-198 (0xC5-0xC6)
+            (0xC5, 0): (0, 0), (0xC5, 1): (0, 1), (0xC5, 2): (0, 2), (0xC5, 3): (0, 3),
+            (0xC6, 0): (0, 4), (0xC6, 1): (0, 5), (0xC6, 2): (0, 6), (0xC6, 3): (0, 7),
+            # row 1 - addresses 202-203 (0xCA-0xCB)
+            (0xCA, 0): (1, 0), (0xCA, 1): (1, 1), (0xCA, 2): (1, 2), (0xCA, 3): (1, 3),
+            (0xCB, 0): (1, 4), (0xCB, 1): (1, 5), (0xCB, 2): (1, 6), (0xCB, 3): (1, 7),
+            # row 2 - addresses 207-208 (0xCF-0xD0)
+            (0xCF, 0): (2, 0), (0xCF, 1): (2, 1), (0xCF, 2): (2, 2), (0xCF, 3): (2, 3),
+            (0xD0, 0): (2, 4), (0xD0, 1): (2, 5), (0xD0, 2): (2, 6), (0xD0, 3): (2, 7),
+            # row 3 - addresses 212-213 (0xD4-0xD5)
+            (0xD4, 0): (3, 0), (0xD4, 1): (3, 1), (0xD4, 2): (3, 2), (0xD4, 3): (3, 3),
+            (0xD5, 0): (3, 4), (0xD5, 1): (3, 5), (0xD5, 2): (3, 6), (0xD5, 3): (3, 7),
+            # row 4 - addresses 217-218 (0xD9-0xDA)
+            (0xD9, 0): (4, 0), (0xD9, 1): (4, 1), (0xD9, 2): (4, 2), (0xD9, 3): (4, 3),
+            (0xDA, 0): (4, 4), (0xDA, 1): (4, 5), (0xDA, 2): (4, 6), (0xDA, 3): (4, 7),
+            # row 5 - addresses 222-223 (0xDE-0xDF)
+            (0xDE, 0): (5, 0), (0xDE, 1): (5, 1), (0xDE, 2): (5, 2), (0xDE, 3): (5, 3),
+            (0xDF, 0): (5, 4), (0xDF, 1): (5, 5), (0xDF, 2): (5, 6), (0xDF, 3): (5, 7),
+            # row 6 - addresses 227-228 (0xE3-0xE4)
+            (0xE3, 0): (6, 0), (0xE3, 1): (6, 1), (0xE3, 2): (6, 2), (0xE3, 3): (6, 3),
+            (0xE4, 0): (6, 4), (0xE4, 1): (6, 5), (0xE4, 2): (6, 6), (0xE4, 3): (6, 7),
+            # row 7 - addresses 232-233 (0xE8-0xE9)
+            (0xE8, 0): (7, 0), (0xE8, 1): (7, 1), (0xE8, 2): (7, 2), (0xE8, 3): (7, 3),
+            (0xE9, 0): (7, 4), (0xE9, 1): (7, 5), (0xE9, 2): (7, 6), (0xE9, 3): (7, 7),
+        }
+        
+        return game_grid_mapping.get((addr, bit_pos))
+
+    def get_led_element_type_enhanced(self, addr, bit_pos, bit_on, food_row, food_col, head_row, head_col):
+        base_type = self.get_led_element_type(addr, bit_pos, bit_on, food_row, food_col, head_row, head_col)
+        
+        if base_type == "snake":
+            game_coords = self.led_to_game_coords(addr, bit_pos)
+            if game_coords:
+                row, col = game_coords
+                if row == head_row and col == head_col:
+                    return "snake"
+        
+        return base_type
+
+    def draw_debug_info(self):
         pyxel.text(640, 2, 'Arch-242 Emulator', 3)
-
         pyxel.text(640, 18, 'Program Name:', 3)
         pyxel.text(640, 26, self.TITLE, 3)
-
         pyxel.text(640, 42, 'Current Instruction:', 3)
 
         if self.PC < len(self.ASM_MEM):
@@ -631,41 +734,27 @@ class arch242emu:
 
         pyxel.text(640, 66, 'CPU CLOCK COUNT:', 3)
         pyxel.text(640, 74, str(self.CLOCK), 3)
-
         pyxel.text(640, 90, 'PROGRAM COUNTER:', 3)
         pyxel.text(640, 98, str(self.PC), 3)
-
         pyxel.text(640, 114, 'REGISTERS:', 3)
-
         pyxel.text(640, 130, f'ACC: {bin(self.ACC)}', 3)
-
         pyxel.text(640, 146, f'RA: {bin(self.RA)}', 3)
         pyxel.text(640, 154, f'RB: {bin(self.RB)}', 3)
         pyxel.text(640, 162, f'RC: {bin(self.RC)}', 3)
         pyxel.text(640, 170, f'RD: {bin(self.RD)}', 3)
         pyxel.text(640, 178, f'RE: {bin(self.RE)}', 3)
-
         pyxel.text(640, 194, f'IOA: {bin(self.IOA)}', 3)
         pyxel.text(640, 202, f'TEMP: {bin(self.TEMP)}', 3)
         pyxel.text(640, 210, f'CF: {bin(self.CF)}', 3)
         pyxel.text(640, 218, f'EI: {bin(self.EI)}', 3)
+        
+        pyxel.text(640, 234, 'GAME STATE:', 3)
+        pyxel.text(640, 242, f'Head: ({self.MEM[0x81]},{self.MEM[0x82]})', 3)
+        pyxel.text(640, 250, f'Tail: ({self.MEM[0x83]},{self.MEM[0x84]})', 3)
+        pyxel.text(640, 258, f'Food: ({self.MEM[0x85]},{self.MEM[0x86]})', 3)
+        pyxel.text(640, 266, f'Score: {self.MEM[0x89]}', 3)
+        pyxel.text(640, 274, f'Dir: {self.MEM[0x80]}', 3)
 
-        # just commenting here just in case i'm wrong, suggestion lang tho
-        # can make your own, rough idea implementation lang to that i didn't really test
-        '''
-        for i in self.MEM[192:242]:
-        if colval == 20: 
-            rowval += 1
-            colval = 0
-
-        lower_nibble = i & 0xF  # should only use lower 4 bits kasi nibble
-        for bit_pos in range(4):  # we cehck each bit position
-            if (lower_nibble >> bit_pos) & 1:  # check if bit is set
-                pyxel.blt((bit_pos+colval)*32,rowval*32,0,32,0,32,32,0)
-            else:
-                pyxel.blt((bit_pos+colval)*32,rowval*32,0,0,0,32,32,0)
-        colval += 4
-        '''
 
 if __name__ == "__main__":
     init()
