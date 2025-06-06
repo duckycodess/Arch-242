@@ -195,6 +195,8 @@ rcrd 0xA7
 to-mdc
 # /========== precomputed table ==========/ 
 
+
+
 # ========== start ========== 
 start:
     # clear everything from 0xC0 to 0xF1
@@ -203,7 +205,7 @@ start:
 
 clear_row_C:
     to-mba
-    inc*-ra
+    inc*-reg 0
     bnz-a clear_row_C # if RA != 0, keep turning off LEDs 0xC:RA
 
     # else, this means nakawrap around na ung pagclear from RA=0x0->0xF for RB=0xC
@@ -213,7 +215,7 @@ clear_row_C:
 
 clear_row_D:
     to-mba
-    inc*-ra
+    inc*-reg 0
     bnz-a clear_row_D # if RA != 0, keep turning off LEDs 0xD:RA
 
     # else, this means nakawrap around na ung pagclear from RA=0x0->0xF for RB=0xD
@@ -223,7 +225,7 @@ clear_row_D:
 
 clear_row_E:
     to-mba
-    inc*-ra
+    inc*-reg 0
     bnz-a clear_row_E # if RA != 0, keep turning off LEDs 0xD:RA
 
     # else, this means nakawrap around na ung pagclear from RA=0x0->0xF for RB=0xE
@@ -242,6 +244,53 @@ clear_row_E:
     b initialize_states
 
 initialize_states:
+    # ========== border_leds ========== 
+    acc 0xF
+
+    # top border wall
+    rcrd 0xC0
+    to-mdc
+    rcrd 0xC1
+    to-mdc
+    rcrd 0xC2
+    to-mdc
+    rcrd 0xC3
+    to-mdc
+    rcrd 0xC4
+    to-mdc
+
+    # middle border wall
+    rcrd 0xC7
+    to-mdc
+    rcrd 0xCC
+    to-mdc
+    rcrd 0xD1
+    to-mdc
+    rcrd 0xD6
+    to-mdc
+    rcrd 0xDB
+    to-mdc
+    rcrd 0xE0
+    to-mdc
+    rcrd 0xE5
+    to-mdc
+    rcrd 0xEA
+    to-mdc 
+
+    # bottom border wall
+    rcrd 0xED
+    to-mdc
+    rcrd 0xEE
+    to-mdc
+    rcrd 0xEF
+    to-mdc
+    rcrd 0xF0
+    to-mdc
+    rcrd 0xF1
+    to-mdc
+    # /========== border_leds ==========/ 
+
+
     # 1. initialize direction (right) in mem
     acc 0x1
     rarb 0x80
@@ -261,6 +310,41 @@ initialize_states:
     rarb 0x89
     to-mba # MEM[0x89] = 0x0
 
+    # ========== LED score to 0 ==========
+    # tens digit
+    acc 0x6
+    rcrd 0xCD
+    to-mdc
+    rcrd 0xE6
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD2
+    to-mdc
+    rcrd 0xD7
+    to-mdc
+    rcrd 0xDC
+    to-mdc
+    rcrd 0xE1
+    to-mdc
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+    rcrd 0xE7
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+    rcrd 0xD8
+    to-mdc
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+    # /========== LED score to 0 ==========/ 
 
     # 4. place snake body in center
     # 4.1 put head coords (3,3) to MEM[0x81] and MEM[0x82] respectively
@@ -524,20 +608,20 @@ move_snake:
     # load head_row into RA
     rarb 0x81
     from-mba # ACC = MEM[0x81]
-    to-ra # REG[RA] = ACC
+    to-reg 0 # REG[RA] = ACC
 
     # load head_col into RB
     rarb 0x82
     from-mba # ACC = MEM[0x82]
-    to-rb # REG[RB] = ACC
+    to-reg 1 # REG[RB] = ACC
 
     # load direction into RC
     rarb 0x80
     from-mba # ACC = MEM[0x80]
-    to-rc # REC[RC] = ACC
+    to-reg 2 # REC[RC] = ACC
 
     # calculate new_head_row, new_head_col (check walls -> collision)
-    from-rc # ACC = REG[RC]
+    from-reg 2 # ACC = REG[RC]
     beqz move_up # if direction is 0x0, move up
 
     # else, try to move right
@@ -618,11 +702,11 @@ check_if_self_collision:
 
     rcrd 0x81
     from-mdc
-    to-ra
+    to-reg 0
 
     rcrd 0x82
     from-mdc
-    to-rb
+    to-reg 1
 
     # here we check if new_head_row (RA) and new_head_col (RB) collides with snake body 
 
@@ -666,12 +750,12 @@ check_if_self_collision:
 
     # IMPLEMENTATION
     # 1.1 store RA temporarily in MEM[0xAA]
-    from-ra # ACC = REG[RA] = new_head_row
+    from-reg 0 # ACC = REG[RA] = new_head_row
     rcrd 0xAA
     to-mdc # MEM[0xAA] = new_head_row
 
     # 1.2 store RB temporarily in MEM[0xAB]
-    from-rb # ACC = REG[RB] = new_head_col
+    from-reg 1 # ACC = REG[RB] = new_head_col
     rcrd 0xAB
     to-mdc # MEM[0xAB] = new_head_col
 
@@ -680,11 +764,11 @@ check_if_self_collision:
 
     # 2.1 translate RB into LED matrix index
     acc 0x9
-    to-rb # REG[RB] = 0x9
+    to-reg 1 # REG[RB] = 0x9
     
     rcrd 0xAA
     from-mdc # ACC = REG[RA]
-    to-ra # REG[RA] = RA
+    to-reg 0 # REG[RA] = RA
 
     from-mba # ACC = MEM[0x9:RA]
     rcrd 0xAC
@@ -692,11 +776,11 @@ check_if_self_collision:
 
     # 2.2 translate RA into LED matrix index
     acc 0xA
-    to-rb # REG[RB] = 0xA
+    to-reg 1 # REG[RB] = 0xA
 
     rcrd 0xAA
     from-mdc # ACC = REG[RA]
-    to-ra # REG[RA] = RA
+    to-reg 0 # REG[RA] = RA
 
     from-mba # ACC = MEM[0xA:RA]
     rcrd 0xAD 
@@ -803,12 +887,12 @@ is_bit_0_on:
     # 1.1 translatedRB
     rcrd 0xAC
     from-mdc
-    to-rb
+    to-reg 1
 
     # 1.2 translatedRA
     rcrd 0xAD
     from-mdc
-    to-ra
+    to-reg 0
 
     acc 0x1
     and-ba # ACC = ACC & MEM[translated(RB:RA)] = 0x1 & MEM[translated(RB:RA)]
@@ -831,12 +915,12 @@ is_bit_1_on:
     # 1.1 translatedRB
     rcrd 0xAC
     from-mdc
-    to-rb
+    to-reg 1
 
     # 1.2 translatedRA
     rcrd 0xAD
     from-mdc
-    to-ra
+    to-reg 0
 
     acc 0x2
     and-ba # ACC = ACC & MEM[translated(RB:RA)] = 0x2 & MEM[translated(RB:RA)]
@@ -859,12 +943,12 @@ is_bit_2_on:
     # 1.1 translatedRB
     rcrd 0xAC
     from-mdc
-    to-rb
+    to-reg 1
 
     # 1.2 translatedRA
     rcrd 0xAD
     from-mdc
-    to-ra
+    to-reg 0
 
     acc 0x4
     and-ba # ACC = ACC & MEM[translated(RB:RA)] = 0x4 & MEM[translated(RB:RA)]
@@ -887,12 +971,12 @@ is_bit_3_on:
     # 1.1 translatedRB
     rcrd 0xAC
     from-mdc
-    to-rb
+    to-reg 1
 
     # 1.2 translatedRA
     rcrd 0xAD
     from-mdc
-    to-ra
+    to-reg 0
 
     acc 0x8
     and-ba # ACC = ACC & MEM[translated(RB:RA)] = 0x8 & MEM[translated(RB:RA)]
@@ -961,12 +1045,12 @@ check_if_food_or_body:
     # turn back RA
     rcrd 0xAA
     from-mdc # ACC = MEM[0xAA] = RA
-    to-ra # REG[RA] = ACC
+    to-reg 0 # REG[RA] = ACC
 
     # turn back RB
     rcrd 0xAB
     from-mdc # ACC = MEM[0xAB] = RB
-    to-rb # REG[RB] = ACC
+    to-reg 1 # REG[RB] = ACC
 
     b check_same_food_row_col
 
@@ -1129,12 +1213,12 @@ turn_on_bit_0:
     # fetch translatedRB from MEM[0xAC]
     rcrd 0xAC
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
 
     # fetch translatedRA from MEM[0xAD]
     rcrd 0xAD
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0x1
     or*-mba # MEM[translated(RB:RA)] = 0b0001 | MEM[translated(RB:RA)]
@@ -1147,12 +1231,12 @@ turn_on_bit_1:
     # fetch translatedRB from MEM[0xAC]
     rcrd 0xAC
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
 
     # fetch translatedRA from MEM[0xAD]
     rcrd 0xAD
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0x2
     or*-mba # MEM[translated(RB:RA)] = 0b0010 | MEM[translated(RB:RA)]
@@ -1165,12 +1249,12 @@ turn_on_bit_2:
     # fetch translatedRB from MEM[0xAC]
     rcrd 0xAC
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
 
     # fetch translatedRA from MEM[0xAD]
     rcrd 0xAD
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0x4
     or*-mba # MEM[translated(RB:RA)] = 0b0100 | MEM[translated(RB:RA)]
@@ -1183,12 +1267,12 @@ turn_on_bit_3:
     # fetch translatedRB from MEM[0xAC]
     rcrd 0xAC
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
 
     # fetch translatedRA from MEM[0xAD]
     rcrd 0xAD
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0x8
     or*-mba # MEM[translated(RB:RA)] = 0b1000 | MEM[translated(RB:RA)]
@@ -1272,12 +1356,12 @@ set_mem_head_ptr:
     # set RB = head_ptr_high
     rcrd 0xB3
     from-mdc # ACC = MEM[0xB3]
-    to-rb # REG[RB] = head_ptr_high
+    to-reg 1 # REG[RB] = head_ptr_high
     
     # set RA = head_ptr_low
     rcrd 0xB4
     from-mdc # ACC = MEM[0xB4]
-    to-ra # REG[RA] = head_ptr_low
+    to-reg 0 # REG[RA] = head_ptr_low
 
     # set row[head_ptr_high:head_ptr_low] = RA
     rcrd 0xAA # load new_head_row
@@ -1289,13 +1373,13 @@ set_mem_head_ptr:
     acc 0x4
     rarb 0xB3
     add-mba # ACC = 0x4 + MEM[0xB3] = 0x4 + head_ptr_high = translated(head_ptr_high)
-    to-rb # REG[RB] = ACC = translated(head_ptr_high)
+    to-reg 1 # REG[RB] = ACC = translated(head_ptr_high)
 
     # 2. add 0x0 to head_ptr_low, but that's just unnecessary
     # we'll just direct to loading it to RA
     rcrd 0xB4
     from-mdc # ACC = MEM[0xB4] = head_ptr_low
-    to-ra # REG[RA] = ACC = translated(head_ptr_low) = head_ptr_low
+    to-reg 0 # REG[RA] = ACC = translated(head_ptr_low) = head_ptr_low
     
     # 3. finally, we can col[translated(head_ptr_high:head_ptr_low)] = RB
     rcrd 0xAB
@@ -1344,11 +1428,11 @@ turn_off_old_tail_led:
 
     # 2.1 translate RB into LED matrix index
     acc 0x9
-    to-rb # REG[RB] = 0x9
+    to-reg 1 # REG[RB] = 0x9
     
     rcrd 0x83
     from-mdc # ACC = REG[RA]
-    to-ra # REG[RA] = RA
+    to-reg 0 # REG[RA] = RA
 
     from-mba # ACC = MEM[0x9:RA]
     rcrd 0xAE
@@ -1356,11 +1440,11 @@ turn_off_old_tail_led:
 
     # 2.2 translate RA into LED matrix index
     acc 0xA
-    to-rb # REG[RB] = 0xA
+    to-reg 1 # REG[RB] = 0xA
 
     rcrd 0x83
     from-mdc # ACC = REG[RA]
-    to-ra # REG[RA] = 0xRA
+    to-reg 0 # REG[RA] = 0xRA
 
     from-mba # ACC = MEM[0xA:RA]
     rcrd 0xAF
@@ -1495,12 +1579,12 @@ turn_off_bit_0:
     # fetch translatedRB from MEM[0xAE]
     rcrd 0xAE
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
     
     # fetch translatedRA from MEM[0xAF]
     rcrd 0xAF
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0xE
     and*-mba # MEM[translated(RB:RA)] = 0b1110 & MEM[translated(RB:RA)]
@@ -1513,12 +1597,12 @@ turn_off_bit_1:
     # fetch translatedRB from MEM[0xAE]
     rcrd 0xAE
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
     
     # fetch translatedRA from MEM[0xAF]
     rcrd 0xAF
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0xD
     and*-mba # MEM[translated(RB:RA)] = 0b1101 & MEM[translated(RB:RA)]
@@ -1531,12 +1615,12 @@ turn_off_bit_2:
     # fetch translatedRB from MEM[0xAE]
     rcrd 0xAE
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
     
     # fetch translatedRA from MEM[0xAF]
     rcrd 0xAF
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0xB
     and*-mba # MEM[translated(RB:RA)] = 0b1011 & MEM[translated(RB:RA)]
@@ -1549,12 +1633,12 @@ turn_off_bit_3:
     # fetch translatedRB from MEM[0xAE]
     rcrd 0xAE
     from-mdc
-    to-rb # REG[RB] = translatedRB
+    to-reg 1 # REG[RB] = translatedRB
     
     # fetch translatedRA from MEM[0xAF]
     rcrd 0xAF
     from-mdc
-    to-ra # REG[RA] = translatedRA
+    to-reg 0 # REG[RA] = translatedRA
 
     acc 0x7
     and*-mba # MEM[translated(RB:RA)] = 0b0111 & MEM[translated(RB:RA)]
@@ -1568,12 +1652,12 @@ deque_tail:
     # set RB = tail_ptr_high
     rcrd 0xB5
     from-mdc # ACC = MEM[0xB5]
-    to-rb # REG[RB] = tail_ptr_high
+    to-reg 1 # REG[RB] = tail_ptr_high
 
     # set RA = tail_ptr_low
     rcrd 0xB6
     from-mdc # ACC = MEM[0xB6]
-    to-ra # REG[RA] = tail_ptr_low
+    to-reg 0 # REG[RA] = tail_ptr_low
 
     # set row[tail_ptr_high:tail_ptr_low] = 0x0
     acc 0x0
@@ -1584,13 +1668,13 @@ deque_tail:
     acc 0x4
     rarb 0xB5
     add-mba # ACC = 0x4 + MEM[0xB5] = 0x4 + tail_ptr_high = translated(tail_ptr_high)
-    to-rb # REG[RB] = ACC = translated(tail_ptr_high)
+    to-reg 1 # REG[RB] = ACC = translated(tail_ptr_high)
 
     # add 0x0 to tail_ptr_low, but that's just unnecessary
     # we'll just direct to loading it to RA
     rcrd 0xB6
     from-mdc # ACC = MEM[0xB6] = tail_ptr_low
-    to-ra # REG[RA] = ACC = translated(tail_ptr_low) = tail_ptr_low
+    to-reg 0 # REG[RA] = ACC = translated(tail_ptr_low) = tail_ptr_low
 
     # finally, we can col[translated(tail_ptr_high:tail_ptr_low)] = 0x0
     acc 0x0
@@ -1644,12 +1728,12 @@ set_mem_tail_ptr:
     # 1.2.3.1 set RB = tail_ptr_high
     rcrd 0xB5
     from-mdc # ACC = MEM[0xB5]
-    to-rb
+    to-reg 1
 
     # 1.2.3.2 set RA = tail_ptr_low
     rcrd 0xB6
     from-mdc # ACC = MEM[0xB6]
-    to-ra # REG[RA] = tail_ptr_low
+    to-reg 0 # REG[RA] = tail_ptr_low
 
     # 1.2.3.3 set tail_row to next_tail_row
     from-mba # ACC = MEM[tail_ptr_high:tail_ptr_low]
@@ -1663,13 +1747,13 @@ set_mem_tail_ptr:
     rarb 0xB5
     clr-cf # set CF = 0, just in case
     add-mba # ACC = 0x4 + MEM[0xB5] = 0x4 + tail_ptr_high = translated(tail_ptr_high)
-    to-rb # REG[RB] = ACC = translated(tail_ptr_high)
+    to-reg 1 # REG[RB] = ACC = translated(tail_ptr_high)
 
     # add 0x0 to tail_ptr_low, but that's just unnecessary
     # we'll just direct to loading it to RA
     rcrd 0xB6
     from-mdc # ACC = MEM[0xB6] = tail_ptr_low
-    to-ra # REG[RA] = ACC = translated(tail_ptr_low) = tail_ptr_low
+    to-reg 0 # REG[RA] = ACC = translated(tail_ptr_low) = tail_ptr_low
 
     from-mba # ACC = MEM[translated(tail_ptr_high:tail_ptr_low)]
     rcrd 0x84
@@ -1851,65 +1935,514 @@ update_score_display:
 
 show_0:
 
+    # tens digit
+    acc 0x6
+    rcrd 0xCD
+    to-mdc
+    rcrd 0xE6
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD2
+    to-mdc
+    rcrd 0xD7
+    to-mdc
+    rcrd 0xDC
+    to-mdc
+    rcrd 0xE1
+    to-mdc
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+    rcrd 0xE7
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+    rcrd 0xD8
+    to-mdc
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+
     b after_update_score_display
 
 show_1:
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x4
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x6
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x5
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x4
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+
+    acc 0xF
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_2:
 
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x8
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x4
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x2
+    rcrd 0xE2
+    to-mdc
+
+    acc 0xF
+    rcrd 0xE7
+    to-mdc
+
     b after_update_score_display
 
 show_3:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x4
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x8
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x9
+    rcrd 0xE2
+    to-mdc
+
+    acc 0x6
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_4:
 
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x9
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0xF
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x8
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+    rcrd 0xE7
+    to-mdc
+
     b after_update_score_display
 
 show_5:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0xF
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x1
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x7
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x8
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x9
+    rcrd 0xE2
+    to-mdc
+
+    acc 0x6
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_6:
 
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0xF
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x1
+    rcrd 0xD3
+    to-mdc
+
+    acc 0xF
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x9
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x9
+    rcrd 0xE2
+    to-mdc
+
+    acc 0xF
+    rcrd 0xE7
+    to-mdc
+
     b after_update_score_display
 
 show_7:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0xF
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x8
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x4
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x2
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_8:
 
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x6
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x9
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x9
+    rcrd 0xE2
+    to-mdc
+
+    acc 0x6
+    rcrd 0xE7
+    to-mdc
+
     b after_update_score_display
 
 show_9:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0xE
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD8
+    to-mdc
+
+    acc 0xE
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x8
+    rcrd 0xE2
+    to-mdc
+
+    acc 0x8
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_10:
 
+    # tens digit
+    acc 0x4
+    rcrd 0xCD
+    to-mdc
+
+    acc 0x6
+    rcrd 0xD2
+    to-mdc
+
+    acc 0x5
+    rcrd 0xD7
+    to-mdc
+
+    acc 0x4
+    rcrd 0xDC
+    to-mdc
+    rcrd 0xE1
+    to-mdc
+
+    acc 0xF
+    rcrd 0xE6
+    to-mdc
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+    rcrd 0xE7
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+    rcrd 0xD8
+    to-mdc
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+
     b after_update_score_display
 
 show_11:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x4
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x6
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x5
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x4
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+
+    acc 0xF
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_12:
 
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x8
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x4
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x2
+    rcrd 0xE2
+    to-mdc
+
+    acc 0xF
+    rcrd 0xE7
+    to-mdc
+
     b after_update_score_display
 
 show_13:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x6
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x4
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x8
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x9
+    rcrd 0xE2
+    to-mdc
+
+    acc 0x6
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
 show_14:
 
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0x9
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x9
+    rcrd 0xD3
+    to-mdc
+
+    acc 0xF
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x8
+    rcrd 0xDD
+    to-mdc
+    rcrd 0xE2
+    to-mdc
+    rcrd 0xE7
+    to-mdc
+
     b after_update_score_display
 
 show_15:
+
+    # tens digit
+    # same as prev
+
+    # ones digit
+    acc 0xF
+    rcrd 0xCE
+    to-mdc
+
+    acc 0x1
+    rcrd 0xD3
+    to-mdc
+
+    acc 0x7
+    rcrd 0xD8
+    to-mdc
+
+    acc 0x8
+    rcrd 0xDD
+    to-mdc
+
+    acc 0x9
+    rcrd 0xE2
+    to-mdc
+
+    acc 0x6
+    rcrd 0xE7
+    to-mdc
 
     b after_update_score_display
 
@@ -1925,5 +2458,5 @@ bounds_collision:
 
 game_over:
     # OPTIONAL? some indication to know it's game over
-    shutdown
+    b start
 # /========== game over ==========/
