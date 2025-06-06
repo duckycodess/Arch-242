@@ -1768,7 +1768,6 @@ set_mem_tail_ptr:
 
 # ========== food_spawn ========== 
 food_spawn:
-    # TODO: pseudorandom spawn
     # NOTE: we have the access to the following variables
     # normalizedRB_head [0xA8] 
     # normalizedRB_tail [0xA9]
@@ -2107,7 +2106,6 @@ turn_on_food_bit_3:
 
 # ========== update_score_display ==========
 update_score_display:
-    # TODO: update score display in LED matrix
     # NOTE: I actually set score to have two nibbles so it can support up to max score of 255, but since required lang is at most 15, it's okay if we read from MEM[0x89]
 
     # PSEUDOCODE
@@ -2116,6 +2114,12 @@ update_score_display:
     # if MEM[0x89] == 1: show_1
     # ...
     # if MEM[0x89] == 15: show_15
+
+    # if MEM[0x88] == 1, that means naging 15 na ung score and we have to game over na
+    acc 0x1
+    rarb 0x88
+    xor-ba # ACC = 0x1 ^ MEM[0x88]
+    beqz game_over
 
     acc 0x0
     rarb 0x89
@@ -2204,8 +2208,6 @@ update_score_display:
 
 
 # ========== hardcoded-mappings ==========
-# TODO: ipakita lang dito according kung ano ung sa spreadsheet
-
 show_0:
 
     # tens digit
@@ -2718,7 +2720,6 @@ show_15:
     to-mdc
 
     b after_update_score_display
-
 # /========== hardcoded-mappings ==========/
 
 
