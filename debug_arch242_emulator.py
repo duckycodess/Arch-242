@@ -144,7 +144,6 @@ class arch242emu:
         pyxel.run(self.update, self.draw)
 
     def build_pc_to_line_map(self, assembler: Arch242Assembler):
-        """Build mapping from PC addresses to original assembly line numbers"""
         current_pc = 0
         
         for line_num, line in enumerate(self.ASM_LINES, 1):
@@ -179,13 +178,11 @@ class arch242emu:
                 current_pc += len(encoded)
 
     def log_write(self, message):
-        """Write message to log file"""
         if self.LOGGING_ENABLED and self.LOG_FILE:
             self.LOG_FILE.write(message + '\n')
             self.LOG_FILE.flush()
 
     def log_state_before_instruction(self):
-        """Log complete machine state before instruction execution"""
         if not self.LOGGING_ENABLED:
             return
             
@@ -209,7 +206,6 @@ class arch242emu:
         self.log_register_state()
         
     def log_state_after_instruction(self):
-        """Log state after instruction execution"""
         if not self.LOGGING_ENABLED:
             return
             
@@ -228,19 +224,16 @@ class arch242emu:
         self.log_write("="*60)
         
     def log_register_state(self):
-        """Log all register values"""
         self.log_write(f"Registers:")
         self.log_write(f"  RA: {self.RA:04b} ({self.RA:d})  RB: {self.RB:04b} ({self.RB:d})  RC: {self.RC:04b} ({self.RC:d})  RD: {self.RD:04b} ({self.RD:d})  RE: {self.RE:04b} ({self.RE:d})")
         self.log_write(f"  ACC: {self.ACC:04b} ({self.ACC:d})  CF: {self.CF}  IOA: {self.IOA:04b}")
         self.log_write(f"  TEMP: {self.TEMP:016b} ({self.TEMP:d})")
         
     def log_memory_access(self, address, value, is_write=False):
-        """Log memory access"""
         access_type = "WRITE" if is_write else "READ"
         self.MEMORY_ACCESSES.append(f"{access_type} MEM[{address:03d} (0x{address:02X})] = {value:04b} ({value:d})")
         
     def is_two_byte_instruction(self, opcode):
-        """Check if instruction is two bytes"""
         # Two-byte instructions based on your implementation
         if opcode == 0x37:  # shutdown first byte
             return True
@@ -897,7 +890,7 @@ class arch242emu:
 
             for c,k in enumerate(self.LED[i]):
                 if k:
-                                        pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0)
+                    pyxel.blt((c+colval)*32,rowval*32,0,32,0,32,32,0)
                 else:
                     pyxel.blt((c+colval)*32,rowval*32,0,0,0,32,32,0)
 
@@ -966,7 +959,6 @@ class arch242emu:
             pyxel.text(640, 285, 'BREAKPOINT!', 7)
 
     def __del__(self):
-        """Cleanup when emulator is destroyed"""
         if hasattr(self, 'LOG_FILE') and self.LOG_FILE:
             self.LOG_FILE.close()
 
