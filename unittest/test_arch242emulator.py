@@ -323,7 +323,6 @@ class TestArch242Emulator:
         assert emu.RD == 9
 
     def test_register_operations_boundaries(self):
-        """Test register inc/dec at boundaries"""
         # Test increment at max value
         for reg_idx in range(5):
             opcode = 0x10 | (reg_idx << 1)  # inc*-reg
@@ -347,7 +346,6 @@ class TestArch242Emulator:
             elif reg_idx == 4: assert emu.RE == 0x0
 
     def test_keyboard_input_mapping(self):
-        """Test keyboard input correctly maps to IOA bits"""
         emu = self.create_test_emulator(self.create_binary_file([0x3E]))
         
         # Test each key individually
@@ -444,25 +442,25 @@ class TestArch242Emulator:
         asm_code = """
         # Initialize snake position
         acc 5
-        to-ra       # X position
+        to-reg 0       # X position
         acc 5
-        to-rb       # Y position
+        to-reg 1       # Y position
         
         # Calculate LED address (192 + row*10 + col/4)
-        from-rb
+        from-reg 1
         add 0
         add 0
-        to-rc       # RC = Y*2
-        from-rc
+        to-reg 2       # RC = Y*2
+        from-reg 2
         add 0
         add 0
         add 0
-        to-rc       # RC = Y*8
-        from-rb
+        to-reg 2       # RC = Y*8
+        from-reg 1
         add 0
-        to-rd       # RD = Y*2
-        from-rc
-        from-rd
+        to-reg 3       # RD = Y*2
+        from-reg 2
+        from-reg 3
         add 0       # ACC = Y*10
         
         # Game loop
@@ -476,27 +474,27 @@ class TestArch242Emulator:
         b game_loop
         
     move_up:
-        from-rb
+        from-reg 1
         dec
-        to-rb
+        to-reg 1
         b update_display
         
     move_down:
-        from-rb
+        from-reg 1
         inc
-        to-rb
+        to-reg 1
         b update_display
         
     move_left:
-        from-ra
+        from-reg 0
         dec
-        to-ra
+        to-reg 0
         b update_display
         
     move_right:
-        from-ra
+        from-reg 0
         inc
-        to-ra
+        to-reg 0
         b update_display
         
     update_display:
@@ -605,15 +603,15 @@ class TestArch242Emulator:
         
         # Register operations
         acc 5
-        to-ra
-        to-rb
-        to-rc
-        to-rd
-        to-re
+        to-reg 0
+        to-reg 1
+        to-reg 2
+        to-reg 3
+        to-reg 4
         
-        from-ra
-        inc*-ra
-        dec*-rb
+        from-reg 0
+        inc*-reg 0
+        dec*-reg 1
         
         # Flags
         set-cf
@@ -674,7 +672,7 @@ class TestArch242Emulator:
             pass
 
     def test_instruction_decode_bugs(self):
-        bin_file = self.create_binary_file([0x20])  # Should be to-ra
+        bin_file = self.create_binary_file([0x20])  # Should be to-reg 0
         emu = self.run_emulator_steps(bin_file, steps=0)
         emu.ACC = 0xA
         emu.read_inst(0, emu.ASM_MEM)
@@ -749,16 +747,16 @@ class TestArch242Emulator:
         to-mba       # Initialize sum to 0
         
         acc 15
-        to-rc        # Counter in RC
+        to-reg 2        # Counter in RC
         
     loop:
-        from-rc
+        from-reg 2
         beqz done
         
         # Add counter to sum
         # First, store counter value in a temporary location
         rarb 0x01    # Use memory location 1 for counter
-        from-rc
+        from-reg 2
         to-mba       # Store counter at mem[1]
         
         # Get sum and add counter
@@ -770,9 +768,9 @@ class TestArch242Emulator:
         to-mba       # Store new sum
         
         # Decrement counter
-        from-rc
+        from-reg 2
         dec
-        to-rc
+        to-reg 2
         
         b loop
         

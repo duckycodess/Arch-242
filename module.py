@@ -73,7 +73,7 @@ class Arch242Assembler:
                 return int(value, 2)
             else:
                 return int(value)
-        except ValueError as e:
+        except:
             raise InvalidNumberFormatError(
                 value, 
                 "Invalid number format",
@@ -180,32 +180,45 @@ class Arch242Assembler:
         if instruction in self.single_byte_instructions:
             return [self.single_byte_instructions[instruction]]
         
-        def register_encoded_values(instruction_number: int, register: str) -> list[int]:
-            if register.lower() not in self.registers:
-                raise InvalidRegisterError(
-                    register,
-                    list(self.registers.keys()),
+        def register_encoded_values(base_instruction: int, register_index: int) -> list[int]:
+            if base_instruction == 16:  # inc*-reg
+                return [0x10 | (register_index << 1)]
+            elif base_instruction == 17:  # dec*-reg
+                return [0x10 | (register_index << 1) | 1]
+            elif base_instruction == 32:  # to-reg
+                return [0x20 | (register_index << 1)]
+            elif base_instruction == 33:  # from-reg
+                return [0x20 | (register_index << 1) | 1]
+        
+        if instruction in ['inc*-reg', 'dec*-reg', 'to-reg', 'from-reg']:
+            if len(parts) < 2:
+                raise MissingOperandError(
+                    instruction,
+                    1,
                     self.current_line_number,
                     self.current_line_content
                 )
             
-            register_index = self.registers[register]
-            return [instruction_number + (register_index << 1)]
-        
-        find_dash = instruction.find('-')
-        if find_dash != -1:
-            immediate_instruction = instruction[:find_dash]
-            regis = instruction[find_dash+1:]
+            try:
+                register_index = self.parse_immediate_values(parts[1])
+                if register_index > 4:
+                    raise InvalidRegisterError(
+                        str(register_index),
+                        "0-4",
+                        self.current_line_number,
+                        self.current_line_content
+                    )
+            except InvalidNumberFormatError:
+                raise
             
-            match immediate_instruction:
-                case 'inc*':
-                    return register_encoded_values(16, regis)
-                case 'dec*':
-                    return register_encoded_values(17, regis)
-                case 'to':
-                    return register_encoded_values(32, regis)
-                case 'from':
-                    return register_encoded_values(33, regis)
+            base_map = {
+                'inc*-reg': 16,
+                'dec*-reg': 17,
+                'to-reg': 32,
+                'from-reg': 33
+            }
+            
+            return register_encoded_values(base_map[instruction], register_index)
 
         if instruction == 'shutdown':
             return [0x37, 0x3E]

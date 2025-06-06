@@ -87,23 +87,23 @@ class TestArch242Assembler:
         self.assemble_and_compare('shutdown', [0x37, 0x3E])
     
     def test_register_instructions(self):
-        # inc*-reg instructions
-        for reg, idx in [('ra', 0), ('rb', 1), ('rc', 2), ('rd', 3), ('re', 4)]:
+        # inc*-reg 4g instructions
+        for reg, idx in [('reg 0', 0), ('reg 1', 1), ('reg 2', 2), ('reg 3', 3), ('reg 4', 4)]:
             expected = [0x10 + (idx << 1)]
             self.assemble_and_compare(f'inc*-{reg}', expected)
         
-        # dec*-reg instructions  
-        for reg, idx in [('ra', 0), ('rb', 1), ('rc', 2), ('rd', 3), ('re', 4)]:
+        # dec*-reg 4g instructions  
+        for reg, idx in [('reg 0', 0), ('reg 1', 1), ('reg 2', 2), ('reg 3', 3), ('reg 4', 4)]:
             expected = [0x11 + (idx << 1)]
             self.assemble_and_compare(f'dec*-{reg}', expected)
         
-        # to-reg instructions
-        for reg, idx in [('ra', 0), ('rb', 1), ('rc', 2), ('rd', 3), ('re', 4)]:
+        # to-reg 4g instructions
+        for reg, idx in [('reg 0', 0), ('reg 1', 1), ('reg 2', 2), ('reg 3', 3), ('reg 4', 4)]:
             expected = [0x20 + (idx << 1)]
             self.assemble_and_compare(f'to-{reg}', expected)
         
-        # from-reg instructions
-        for reg, idx in [('ra', 0), ('rb', 1), ('rc', 2), ('rd', 3), ('re', 4)]:
+        # from-reg 4g instructions
+        for reg, idx in [('reg 0', 0), ('reg 1', 1), ('reg 2', 2), ('reg 3', 3), ('reg 4', 4)]:
             expected = [0x21 + (idx << 1)]
             self.assemble_and_compare(f'from-{reg}', expected)
     
@@ -470,8 +470,8 @@ class TestArch242Assembler:
                     nOp
                     INC
                     DEC
-                    to-Ra
-                    TO-ra
+                    to-reg 0
+                    to-reg 0
                     """
         expected = [0x3E, 0x3E, 0x3E, 0x31, 0x3F, 0x20, 0x20]
         self.assemble_and_compare(asm_code, expected)
@@ -524,23 +524,23 @@ class TestArch242Assembler:
             self.assembler.assemble_code(test_file, 'bin')
     
     def test_invalid_register_error(self):
-        test_file = self.create_test_file('inc*-rf')
+        test_file = self.create_test_file('inc*-reg 6')
         with pytest.raises(InvalidRegisterError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
 
-        test_file = self.create_test_file('dec*-rf')
+        test_file = self.create_test_file('dec*-reg 6')
         with pytest.raises(InvalidRegisterError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
 
-        test_file = self.create_test_file('inc*-ab')
+        test_file = self.create_test_file('inc*-reg 69')
         with pytest.raises(InvalidRegisterError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
         
-        test_file = self.create_test_file('to-rf')
+        test_file = self.create_test_file('to-reg 32')
         with pytest.raises(InvalidRegisterError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
         
-        test_file = self.create_test_file('from-rf')
+        test_file = self.create_test_file('from-reg 23')
         with pytest.raises(InvalidRegisterError) as exc_info:
             self.assembler.assemble_code(test_file, 'bin')
     
@@ -679,11 +679,11 @@ class TestArch242Assembler:
         asm_code = """
 main:
     acc 0           # Initialize accumulator
-    to-ra           # Store in RA
+    to-reg 0           # Store in RA
 loop:
-    from-ra         # Load from RA
+    from-reg 0         # Load from RA
     inc             # Increment
-    to-ra           # Store back
+    to-reg 0           # Store back
     sub 10          # Compare with 10
     bnez loop       # Loop if not zero
     shutdown        # End program
@@ -757,32 +757,32 @@ loop:
     def test_all_registers_in_different_instructions(self):
 
         asm_code = """
-                    to-ra
-                    to-rb
-                    to-rc
-                    to-rd
-                    to-re
-                    from-ra
-                    from-rb
-                    from-rc
-                    from-rd
-                    from-re
-                    inc*-ra
-                    inc*-rb
-                    inc*-rc
-                    inc*-rd
-                    inc*-re
-                    dec*-ra
-                    dec*-rb
-                    dec*-rc
-                    dec*-rd
-                    dec*-re
+                    to-reg 0
+                    to-reg 1
+                    to-reg 2
+                    to-reg 3
+                    to-reg 4
+                    from-reg 0
+                    from-reg 1
+                    from-reg 2
+                    from-reg 3
+                    from-reg 4
+                    inc*-reg 0
+                    inc*-reg 1
+                    inc*-reg 2
+                    inc*-reg 3
+                    inc*-reg 4
+                    dec*-reg 0
+                    dec*-reg 1
+                    dec*-reg 2
+                    dec*-reg 3
+                    dec*-reg 4
                 """
         expected = [
-            0x20, 0x22, 0x24, 0x26, 0x28,  # to-reg
-            0x21, 0x23, 0x25, 0x27, 0x29,  # from-reg
-            0x10, 0x12, 0x14, 0x16, 0x18,  # inc*-reg
-            0x11, 0x13, 0x15, 0x17, 0x19   # dec*-reg
+            0x20, 0x22, 0x24, 0x26, 0x28,  # to-reg 4g
+            0x21, 0x23, 0x25, 0x27, 0x29,  # from-reg 4g
+            0x10, 0x12, 0x14, 0x16, 0x18,  # inc*-reg 4g
+            0x11, 0x13, 0x15, 0x17, 0x19   # dec*-reg 4g
         ]
         self.assemble_and_compare(asm_code, expected)
     
@@ -970,7 +970,7 @@ loop:
                 inc
                 inc*-mba
                 inc*-mdc
-                inc*-ra
+                inc*-reg 0
                 
                 # Subtraction operations
                 sub-mba
@@ -979,7 +979,7 @@ loop:
                 dec
                 dec*-mba
                 dec*-mdc
-                dec*-rb
+                dec*-reg 1
                 
                 # BCD operation
                 bcd
@@ -1095,14 +1095,14 @@ loop:
                 # Memory-mapped LED test program
                 start:
                     acc 0
-                    to-ra               # Initialize counter
+                    to-reg 0               # Initialize counter
                     
                 main_loop:
-                    from-ra             # Get counter
+                    from-reg 0             # Get counter
                     to-mba              # Store pattern to LED memory
                     
                     inc                 # Increment pattern
-                    to-ra               # Save counter
+                    to-reg 0               # Save counter
                     
                     # Delay
                     acc 15
@@ -1111,7 +1111,7 @@ loop:
                     bnez delay_loop
                     
                     # Check if we've done all patterns
-                    from-ra
+                    from-reg 0
                     sub 15
                     bnez main_loop
                     
@@ -1175,5 +1175,5 @@ loop:
 
         for instruction in removed_instructions:
             test_file = self.create_test_file(instruction)
-            with pytest.raises(InvalidRegisterError):
+            with pytest.raises(UnknownInstructionError):
                 self.assembler.assemble_code(test_file, 'bin')
