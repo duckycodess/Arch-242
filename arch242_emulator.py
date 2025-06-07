@@ -16,7 +16,7 @@ class arch242emu:
     # ---/ INITIALIZE PYXEL AND EMULATOR ELEMENTS /---
 
     def __init__(self, file):
-        pyxel.init(720,320,title="Arch-242 LED Matrix", fps=700) #fps -> clock speed of emulator
+        pyxel.init(720,320,title="Arch-242 LED Matrix", fps=1200) #fps -> clock speed of emulator
         pyxel.load('assets/assets.pyxres')
 
         print("Initializing Emulator...")
@@ -571,16 +571,9 @@ class arch242emu:
             self.CYCLESKIP = False
 
         #IO check
-        self.IOA &= 0b0000
-
-        if pyxel.btn(pyxel.KEY_UP):
-            self.IOA |= 1
-        if pyxel.btn(pyxel.KEY_DOWN):
-            self.IOA |= 2
-        if pyxel.btn(pyxel.KEY_LEFT):
-            self.IOA |= 4
-        if pyxel.btn(pyxel.KEY_RIGHT):
-            self.IOA |= 8
+        if pyxel.btn(pyxel.KEY_UP) or pyxel.btn(pyxel.KEY_DOWN) or pyxel.btn(pyxel.KEY_LEFT) or pyxel.btn(pyxel.KEY_RIGHT):
+            self.IOA = int(pyxel.btn(pyxel.KEY_UP)) << 0 or int(pyxel.btn(pyxel.KEY_DOWN)) << 1 or\
+                        int(pyxel.btn(pyxel.KEY_LEFT)) << 2 or int(pyxel.btn(pyxel.KEY_RIGHT))  << 3
 
         if pyxel.btn(pyxel.KEY_Q):
             print("Quitting Emulator...")
