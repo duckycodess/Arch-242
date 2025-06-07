@@ -1835,49 +1835,102 @@ food_spawn:
     b generate_food_position
 
 generate_food_position:
-    # Generate food_row = (head_row + tail_row + direction) & 0x7
-    # 1. Get head_row
+    # Use a better pseudo-random algorithm that jumps around more
+    # food_row = ((head_row * 3) + (tail_row * 5) + direction + score) & 0x7
+    
+    # 1. Get head_row * 3
     rcrd 0x81
     from-mdc
     rcrd 0xB1
-    to-mdc  # temp store head_row in 0xB1
+    to-mdc  # Store head_row in 0xB1
     
-    # 2. Add tail_row
-    rcrd 0x83
+    # Multiply by 3 (add to itself twice)
     from-mdc
     rarb 0xB1
-    add-mba  # ACC = head_row + tail_row
+    add-mba  # head_row * 2
+    add-mba  # head_row * 3
+    rcrd 0xB1
+    to-mdc  # Store head_row * 3
     
-    # 3. Add direction
+    # 2. Get tail_row * 5
+    rcrd 0x83
+    from-mdc
+    rcrd 0xB2
+    to-mdc  # Store tail_row
+    
+    # Multiply by 5 (add to itself 4 times)
+    from-mdc
+    rarb 0xB2
+    add-mba  # tail_row * 2
+    add-mba  # tail_row * 3
+    add-mba  # tail_row * 4
+    add-mba  # tail_row * 5
+    
+    # 3. Add to head_row * 3
+    rarb 0xB1
+    add-mba
+    
+    # 4. Add direction
     rarb 0x80
-    add-mba  # ACC = head_row + tail_row + direction
+    add-mba
     
-    # 4. Mask to keep within 0-7  
+    # 5. Add score
+    rarb 0x89
+    add-mba
+    
+    # 6. Mask to 0-7
     and 0x7
     rcrd 0xB1
-    to-mdc  # Store candidate food_row in 0xB1
+    to-mdc  # Store candidate food_row
     
-    # Generate food_col = (head_col + tail_col + score) & 0x7
-    # 1. Get head_col
+    # Generate food_col = ((head_col * 7) + (tail_col * 3) + CLOCK) & 0x7
+    # We'll use a different multiplier pattern for better distribution
+    
+    # 1. Get head_col * 7
     rcrd 0x82
     from-mdc
     rcrd 0xB2
-    to-mdc  # temp store head_col in 0xB2
+    to-mdc  # Store head_col
     
-    # 2. Add tail_col
-    rcrd 0x84
+    # Multiply by 7
     from-mdc
     rarb 0xB2
-    add-mba  # ACC = head_col + tail_col
+    add-mba  # * 2
+    add-mba  # * 3
+    add-mba  # * 4
+    add-mba  # * 5
+    add-mba  # * 6
+    add-mba  # * 7
+    rcrd 0xB2
+    to-mdc
     
-    # 3. Add score (low nibble)
+    # 2. Get tail_col * 3
+    rcrd 0x84
+    from-mdc
+    rcrd 0xB7
+    to-mdc
+    
+    from-mdc
+    rarb 0xB7
+    add-mba  # * 2
+    add-mba  # * 3
+    
+    # 3. Add to head_col * 7
+    rarb 0xB2
+    add-mba
+    
+    # 4. Add row to create more variation
+    rarb 0xB1
+    add-mba
+    
+    # 5. Add score for more randomness
     rarb 0x89
-    add-mba  # ACC = head_col + tail_col + score
+    add-mba
     
-    # 4. Mask to keep within 0-7
+    # 6. Mask to 0-7
     and 0x7
     rcrd 0xB2
-    to-mdc  # Store candidate food_col in 0xB2
+    to-mdc  # Store candidate food_col
     
     # Now check if this position is valid
     b check_food_position_valid
