@@ -7,8 +7,8 @@ import sys
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parent_dir)
 
-from module import Arch242Assembler
-from exception_handler_assembler import *
+from assembler.module import Arch242Assembler
+from assembler.exception_handler_assembler import *
 
 
 class TestArch242Assembler:

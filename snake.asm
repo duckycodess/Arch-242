@@ -1852,7 +1852,7 @@ generate_food_position:
     rarb 0x80
     add-mba  # ACC = head_row + tail_row + direction
     
-    # 4. Mask to keep within 0-7
+    # 4. Mask to keep within 0-7  
     and 0x7
     rcrd 0xB1
     to-mdc  # Store candidate food_row in 0xB1
@@ -2732,5 +2732,5 @@ bounds_collision:
 
 game_over:
     # OPTIONAL? some indication to know it's game over
-    b start
+    shutdown
 # /========== game over ==========/

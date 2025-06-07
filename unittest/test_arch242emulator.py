@@ -9,7 +9,7 @@ sys.path.insert(0, parent_dir)
 
 from unittest.mock import patch, MagicMock, Mock
 import arch242_emulator as arch242_emulator
-from module import Arch242Assembler
+from assembler.module import Arch242Assembler
 
 
 class TestArch242Emulator:

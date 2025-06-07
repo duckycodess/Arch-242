@@ -1,5 +1,5 @@
 import pyxel
-from module import Arch242Assembler
+from assembler.module import Arch242Assembler
 import sys
 
 def init(): #consider placing this as a separate file?

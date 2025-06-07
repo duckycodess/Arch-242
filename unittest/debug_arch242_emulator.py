@@ -1,6 +1,6 @@
 # arch242_emulator.py (modified version with logging)
 import pyxel
-from module import Arch242Assembler
+from assembler.module import Arch242Assembler
 import sys
 import os
 from datetime import datetime
@@ -67,10 +67,10 @@ class arch242emu:
         self.TITLE = file[:-4]
 
         # ---/ LOGGING AND DEBUGGING FEATURES /---
-        self.LOGGING_ENABLED = True
-        self.DEBUG_MODE = False
+        self.LOGGING_ENABLED = False
+        self.DEBUG_MODE = True
         self.BREAKPOINT_HIT = False
-        self.STEP_MODE = False
+        self.STEP_MODE = True
         self.LOG_FILE = None
         self.INSTRUCTION_COUNT = 0
         self.ASM_LINES = []  # Store original assembly lines

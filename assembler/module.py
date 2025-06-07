@@ -1,5 +1,5 @@
 import re
-from exception_handler_assembler import *
+from assembler.exception_handler_assembler import *
 
 class Arch242Assembler:
     def __init__(self):
@@ -490,7 +490,6 @@ class Arch242Assembler:
                         )
                     self.labels[data] = self.current_address
                     self.label_definitions[data] = line_number
-                    
                 elif command_type == 'inline_label':
                     label, instruction_data = data
                     if label in self.labels:
