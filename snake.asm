@@ -2018,22 +2018,85 @@ check_food_position_valid:
     rcrd 0xA8
     to-mdc
 
+# WARNING VERY INEFFICIENT
 check_food_led_status:
-    # Load translated addresses
+    # Compare with normalized RB to check if the led is turned off
+    # if normalized RB == 0: 
+    # if bit 0 of LED is on, then position is not free
+    acc 0x0
+    rarb 0xA8
+    xor-ba
+    bnez check_food_led_status_skip_0
+    
     rcrd 0xAC
     from-mdc
     to-reg 1
-    
     rcrd 0xAD
     from-mdc
     to-reg 0
-    
-    # Check if any bit is on at this position
     from-mba
-    beqz food_position_is_free  # If all bits off, position is free
+
+    b-bit 0 adjust_food_position
+    b food_position_is_free
+
+check_food_led_status_skip_0:
+
+    # if normalized RB == 1: 
+    # if bit 1 of LED is on, then position is not free
+    acc 0x1
+    rarb 0xA8
+    xor-ba
+    bnez check_food_led_status_skip_1
     
-    # Position occupied, try next position
-    b adjust_food_position
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    from-mba
+
+    b-bit 1 adjust_food_position
+    b food_position_is_free
+
+check_food_led_status_skip_1:
+
+    # if normalized RB == 2: 
+    # if bit 2 of LED is on, then position is not free
+    acc 0x2
+    rarb 0xA8
+    xor-ba
+    bnez check_food_led_status_skip_2
+    
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    from-mba
+
+    b-bit 2 adjust_food_position
+    b food_position_is_free
+
+check_food_led_status_skip_2:
+
+    # assert normalized RB == 3
+    acc 0x3
+    rarb 0xA8
+    xor-ba
+    bnez game_over
+    # if bit 3 of LED is on, then position is not free
+    rcrd 0xAC
+    from-mdc
+    to-reg 1
+    rcrd 0xAD
+    from-mdc
+    to-reg 0
+    from-mba
+
+    b-bit 3 adjust_food_position
+    b food_position_is_free
 
 adjust_food_position:
     # Simple adjustment: increment col, wrap around if needed
