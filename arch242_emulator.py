@@ -591,10 +591,11 @@ class arch242emu:
         colval = 0
         j = 192
 
-        food_row = self.MEM[0x85] & 0xF
-        food_col = self.MEM[0x86] & 0xF
-        head_row = self.MEM[0x81] & 0xF
-        head_col = self.MEM[0x82] & 0xF
+        if self.TITLE == 'snake':
+            food_row = self.MEM[0x85] & 0xF
+            food_col = self.MEM[0x86] & 0xF
+            head_row = self.MEM[0x81] & 0xF
+            head_col = self.MEM[0x82] & 0xF
         
         for i in self.MEM[192:242]:
             if colval == 20: 
@@ -607,16 +608,26 @@ class arch242emu:
                 x_pos = (c + colval) * 32
                 y_pos = rowval * 32
                 
-                element_type = self.get_led_element_type(j, c, bit_on, food_row, food_col, head_row, head_col)
-                sprite_x, sprite_y = self.get_sprite_position(element_type)
-                pyxel.blt(x_pos, y_pos, 0, sprite_x, sprite_y, 32, 32, 0)
+                if self.TITLE == 'snake':
+                    element_type = self.get_led_element_type(j, c, bit_on, food_row, food_col, head_row, head_col)
+                    sprite_x, sprite_y = self.get_sprite_position(element_type)
+                    pyxel.blt(x_pos, y_pos, 0, sprite_x, sprite_y, 32, 32, 0)
+                else:
+                    for d,k in enumerate(self.LED[i]):
+                        if k:
+                            pyxel.blt((d+colval)*32,rowval*32,0,32,0,32,32,0)
+                        else:
+                            pyxel.blt((d+colval)*32,rowval*32,0,0,0,32,32,0)
                 
-                if self.DEBUG:
+                if self.DEBUG and (self.TITLE == 'snake'):
                     game_pos = self.led_to_game_coords(j, c)
                     if game_pos:
                         pyxel.text(x_pos + 2, y_pos + 2, f'({game_pos[0]},{game_pos[1]})', 3)
                     pyxel.text(x_pos + 2, y_pos + 24, f'({j:02X})', 3)
-
+                elif self.DEBUG:
+                    pyxel.text((c+colval)*32, rowval*32, f'({c+colval},{rowval})', 3)
+                    pyxel.text((c+colval)*32, rowval*32 + 8, f'({j})', 3)
+                    
             colval += 4
             j += 1
 
@@ -741,12 +752,13 @@ class arch242emu:
         pyxel.text(640, 210, f'CF: {bin(self.CF)}', 3)
         pyxel.text(640, 218, f'EI: {bin(self.EI)}', 3)
         
-        pyxel.text(640, 234, 'GAME STATE:', 3)
-        pyxel.text(640, 242, f'Head: ({self.MEM[0x81]},{self.MEM[0x82]})', 3)
-        pyxel.text(640, 250, f'Tail: ({self.MEM[0x83]},{self.MEM[0x84]})', 3)
-        pyxel.text(640, 258, f'Food: ({self.MEM[0x85]},{self.MEM[0x86]})', 3)
-        pyxel.text(640, 266, f'Score: {self.MEM[0x89]}', 3)
-        pyxel.text(640, 274, f'Dir: {self.MEM[0x80]}', 3)
+        if self.TITLE == 'snake':
+            pyxel.text(640, 234, 'GAME STATE:', 3)
+            pyxel.text(640, 242, f'Head: ({self.MEM[0x81]},{self.MEM[0x82]})', 3)
+            pyxel.text(640, 250, f'Tail: ({self.MEM[0x83]},{self.MEM[0x84]})', 3)
+            pyxel.text(640, 258, f'Food: ({self.MEM[0x85]},{self.MEM[0x86]})', 3)
+            pyxel.text(640, 266, f'Score: {self.MEM[0x89]}', 3)
+            pyxel.text(640, 274, f'Dir: {self.MEM[0x80]}', 3)
 
 
 if __name__ == "__main__":

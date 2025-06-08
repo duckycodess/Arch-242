@@ -29,6 +29,6 @@ To make debugging the snake game easier, certain emulator features were added:
 
 - **Debug Panel**: The right hand side of the emulator contains the current state of the processor, along with useful information about the current instruction and specific memory addresses useful to `snake.asm`.
 
-- **Color LEDs**: `snake.asm` utilizes different colors for specific parts of the game. This allows to differentiate the food from the snake, which is both aesthetically pleasing and useful for debugging.
+- **Color LEDs**: `snake.asm` utilizes different colors for specific parts of the game. This allows to differentiate the food from the snake, which is both aesthetically pleasing and useful for debugging. Running a binary or assembly file named `snake` will switch to the Color LEDs, otherwise, it will revert back to the original LED matrix.
 
 ## Demonstration
