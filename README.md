@@ -1,9 +1,5 @@
 # Arch-242 (CS 21.242 Project)
 
-Vaughn Aquino \
-Mansur Batistil \
-Gabriel Mislang \
-Tristan Noval 
 
 ## How to Use
 
